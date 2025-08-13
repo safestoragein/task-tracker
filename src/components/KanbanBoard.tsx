@@ -23,7 +23,7 @@ import { TaskModal } from './TaskModal'
 const columns: Column[] = [
   { id: 'backlog', title: 'Backlog', color: '#6b7280' },
   { id: 'todo', title: 'To Do', color: '#64748b' },
-  { id: 'in-progress', title: 'In Progress', color: '#3b82f6', limit: 3 },
+  { id: 'in-progress', title: 'In Progress', color: '#3b82f6' },
   { id: 'review', title: 'Review', color: '#f59e0b' },
   { id: 'done', title: 'Done', color: '#10b981' },
 ]
