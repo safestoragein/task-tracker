@@ -1,0 +1,208 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useTask } from '@/contexts/TaskContext'
+import { useAuth } from '@/contexts/AuthContext'
+import { Button } from './ui/button'
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu'
+import { Badge } from './ui/badge'
+import { QuickTaskInput } from './QuickTaskInput'
+import { CommandPalette } from './CommandPalette'
+import { Building2, Settings, Users, Bell, Moon, Sun, LogOut, Command, Plus, Shield } from 'lucide-react'
+
+export function Header() {
+  const { state, filteredTasks } = useTask()
+  const { state: authState, logout } = useAuth()
+  const [isDark, setIsDark] = useState(false)
+  const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
+
+  const taskCounts = {
+    todo: filteredTasks.filter(t => t.status === 'todo').length,
+    inProgress: filteredTasks.filter(t => t.status === 'in-progress').length,
+    review: filteredTasks.filter(t => t.status === 'review').length,
+    done: filteredTasks.filter(t => t.status === 'done').length,
+  }
+
+  const overdueTasks = filteredTasks.filter(
+    task => task.dueDate && task.dueDate < new Date() && task.status !== 'done'
+  ).length
+
+  const toggleTheme = () => {
+    setIsDark(!isDark)
+    document.documentElement.classList.toggle('dark')
+  }
+
+  // Keyboard shortcut for command palette
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault()
+        setIsCommandPaletteOpen(true)
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
+  return (
+    <header className="border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex items-center justify-between">
+          {/* Logo and Title */}
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-600 rounded-lg">
+              <Building2 className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold">SafeStorage Task Manager</h1>
+              <p className="text-sm text-muted-foreground">
+                Team Productivity & Planning Board
+              </p>
+            </div>
+          </div>
+
+          {/* Quick Task Input */}
+          <div className="hidden md:block flex-1 max-w-md mx-8">
+            <QuickTaskInput />
+          </div>
+
+          {/* Quick Stats */}
+          <div className="hidden lg:flex items-center gap-4">
+            <div className="flex items-center gap-3">
+              <div className="text-center">
+                <div className="text-lg font-semibold">{taskCounts.todo}</div>
+                <div className="text-xs text-muted-foreground">To Do</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-semibold text-blue-600">{taskCounts.inProgress}</div>
+                <div className="text-xs text-muted-foreground">In Progress</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-semibold text-yellow-600">{taskCounts.review}</div>
+                <div className="text-xs text-muted-foreground">Review</div>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-semibold text-green-600">{taskCounts.done}</div>
+                <div className="text-xs text-muted-foreground">Done</div>
+              </div>
+            </div>
+          </div>
+
+          {/* Right Side Actions */}
+          <div className="flex items-center gap-3">
+            {/* Quick Actions for Mobile */}
+            <div className="flex md:hidden gap-1">
+              <Button variant="ghost" size="sm" onClick={() => setIsCommandPaletteOpen(true)}>
+                <Plus className="h-5 w-5" />
+              </Button>
+            </div>
+
+            {/* Command Palette Button */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsCommandPaletteOpen(true)}
+              className="hidden md:flex items-center gap-2 text-muted-foreground"
+            >
+              <Command className="h-4 w-4" />
+              <span className="text-xs">⌘K</span>
+            </Button>
+
+            {/* Notifications */}
+            <Button variant="ghost" size="sm" className="relative">
+              <Bell className="h-5 w-5" />
+              {overdueTasks > 0 && (
+                <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 text-xs">
+                  {overdueTasks}
+                </Badge>
+              )}
+            </Button>
+
+            {/* Theme Toggle */}
+            <Button variant="ghost" size="sm" onClick={toggleTheme}>
+              {isDark ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            </Button>
+
+            {/* Team Members */}
+            <div className="flex items-center gap-1">
+              {state.teamMembers.slice(0, 3).map(member => (
+                <Avatar key={member.id} className="h-8 w-8">
+                  <AvatarImage src={member.avatar} />
+                  <AvatarFallback className="text-xs">
+                    {member.name.split(' ').map(n => n[0]).join('')}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+              {state.teamMembers.length > 3 && (
+                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center text-xs text-muted-foreground">
+                  +{state.teamMembers.length - 3}
+                </div>
+              )}
+            </div>
+
+            {/* User Menu */}
+            {authState.user && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-9 w-9 rounded-full">
+                    <Avatar className="h-9 w-9">
+                      <AvatarImage src={authState.user.avatar} />
+                      <AvatarFallback>
+                        {authState.user.name.split(' ').map(n => n[0]).join('')}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <div className="flex flex-col space-y-1 p-2">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-medium leading-none">{authState.user.name}</p>
+                      {authState.user.userRole === 'admin' && (
+                        <Badge variant="secondary" className="text-xs">
+                          <Shield className="h-3 w-3 mr-1" />
+                          Admin
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {authState.user.email}
+                    </p>
+                    <p className="text-xs leading-none text-muted-foreground">
+                      {authState.user.role}
+                    </p>
+                  </div>
+                  <DropdownMenuSeparator />
+                  {authState.user.userRole === 'admin' && (
+                    <>
+                      <DropdownMenuItem>
+                        <Users className="mr-2 h-4 w-4" />
+                        <span>Team Management</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem>
+                        <Settings className="mr-2 h-4 w-4" />
+                        <span>Settings</span>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  <DropdownMenuItem onClick={logout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Command Palette */}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+      />
+    </header>
+  )
+}

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reset SafeStorage Task Data</title>
+</head>
+<body>
+    <h1>Reset SafeStorage Task Data</h1>
+    <p>Click the button below to clear all cached data and load the latest SafeStorage team tasks:</p>
+    <button onclick="resetData()">Reset Data & Reload</button>
+    
+    <script>
+        function resetData() {
+            localStorage.clear();
+            sessionStorage.clear();
+            alert('Data cleared! Redirecting to main application...');
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>
