@@ -80,10 +80,13 @@ export interface FilterState {
 export interface DailyReport {
   id: string
   authorId: string
-  date: Date
-  yesterdayWork: string
-  todayPlan: string
+  date: Date | string
+  yesterdayWork?: string
+  todayPlan?: string
   blockers?: string
+  notes?: string
+  tasksCompleted?: string[]
+  tasksInProgress?: string[]
   createdAt: Date
   updatedAt: Date
 }

@@ -29,7 +29,7 @@ const columns: Column[] = [
 ]
 
 export function KanbanBoard() {
-  const { filteredTasks, dispatch } = useTask()
+  const { state, dispatch, filteredTasks } = useTask()
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 

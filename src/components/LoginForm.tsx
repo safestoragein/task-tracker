@@ -47,7 +47,9 @@ export function LoginForm() {
     'niranjan@safestorage.in', 
     'anush@safestorage.in',
     'harsha@safestorage.in',
-    'manish@safestorage.in'
+    'manish@safestorage.in',
+    'arun@safestorage.in',
+    'shantraj@safestorage.in'
   ]
 
   return (

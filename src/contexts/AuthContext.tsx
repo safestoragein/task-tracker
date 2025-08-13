@@ -29,6 +29,8 @@ const safeStorageUsers: User[] = [
   { id: '5', name: 'Kiran', role: 'Technical Architect', email: 'kiran@safestorage.in', userRole: 'member' },
   { id: '6', name: 'Manish', role: 'HR', email: 'manish@safestorage.in', userRole: 'admin' },
   { id: '7', name: 'Ramesh', role: 'CEO', email: 'ramesh@safestorage.in', userRole: 'admin' },
+  { id: '8', name: 'Arun', role: 'Team Member', email: 'arun@safestorage.in', userRole: 'member' },
+  { id: '9', name: 'Shantraj', role: 'Team Member', email: 'shantraj@safestorage.in', userRole: 'member' },
 ]
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
