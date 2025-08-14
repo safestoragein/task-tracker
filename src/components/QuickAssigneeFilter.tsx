@@ -14,11 +14,9 @@ export function QuickAssigneeFilter() {
 
   const selectedAssignees = state.filters.assignee
   
-  // Show all team members that the current user can see
+  // Show all team members to all authenticated users
   const visibleMembers = state.teamMembers.filter(member => {
-    if (!authState.user) return false
-    if (authState.user.userRole === 'admin') return true
-    return member.id === authState.user.id
+    return authState.user ? true : false
   })
 
   const toggleAssignee = (memberId: string) => {

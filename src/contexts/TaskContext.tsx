@@ -11,6 +11,7 @@ export type TaskAction =
   | { type: 'UPDATE_TASK'; payload: { id: string; updates: Partial<Task> } }
   | { type: 'DELETE_TASK'; payload: string }
   | { type: 'MOVE_TASK'; payload: { taskId: string; newStatus: TaskStatus } }
+  | { type: 'REORDER_TASKS'; payload: { tasks: Task[] } }
   | { type: 'SET_TEAM_MEMBERS'; payload: TeamMember[] }
   | { type: 'SET_LABELS'; payload: Label[] }
   | { type: 'SET_FILTERS'; payload: FilterState }
@@ -77,6 +78,11 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
             : task
         )
       }
+      LocalStorageManager.setTasks(newState.tasks)
+      return newState
+
+    case 'REORDER_TASKS':
+      newState = { ...state, tasks: action.payload.tasks }
       LocalStorageManager.setTasks(newState.tasks)
       return newState
 
@@ -180,6 +186,7 @@ export const TaskContext = createContext<{
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
   deleteTask: (id: string) => Promise<void>
   moveTask: (taskId: string, newStatus: TaskStatus) => Promise<void>
+  reorderTasks: (tasks: Task[]) => Promise<void>
   addDailyReport: (report: Omit<DailyReport, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
   updateDailyReport: (id: string, updates: Partial<DailyReport>) => Promise<void>
   deleteDailyReport: (id: string) => Promise<void>
@@ -455,11 +462,17 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   }
 
   const addTask = async (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
+    // Calculate the next order value for this status
+    const tasksInSameStatus = state.tasks.filter(t => t.status === taskData.status)
+    const maxOrder = tasksInSameStatus.reduce((max, task) => 
+      Math.max(max, task.order ?? 0), -1)
+    
     const newTask: Task = {
       ...taskData,
       id: crypto.randomUUID(),
       createdAt: new Date(),
       updatedAt: new Date(),
+      order: maxOrder + 1,
     }
 
     // Add to local state immediately
@@ -531,15 +544,25 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   }
 
   const moveTask = async (taskId: string, newStatus: TaskStatus) => {
-    // Move in local state immediately
-    dispatch({ type: 'MOVE_TASK', payload: { taskId, newStatus } })
+    // Calculate the next order value for the target status
+    const tasksInTargetStatus = state.tasks.filter(t => t.status === newStatus)
+    const maxOrder = tasksInTargetStatus.reduce((max, task) => 
+      Math.max(max, task.order ?? 0), -1)
+
+    // Move in local state immediately with new order
+    const updatedTasks = state.tasks.map(task =>
+      task.id === taskId
+        ? { ...task, status: newStatus, order: maxOrder + 1, updatedAt: new Date() }
+        : task
+    )
+    dispatch({ type: 'REORDER_TASKS', payload: { tasks: updatedTasks } })
 
     // Try to update in database if online
     if (isOnline && supabase) {
       try {
         const { error } = await supabase
           .from('tasks')
-          .update({ status: newStatus })
+          .update({ status: newStatus, order: maxOrder + 1 })
           .eq('id', taskId)
 
         if (error) {
@@ -547,6 +570,35 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         }
       } catch (error) {
         console.error('Error moving task:', error)
+      }
+    }
+  }
+
+  const reorderTasks = async (tasks: Task[]) => {
+    // Update task order in local state immediately
+    dispatch({ type: 'REORDER_TASKS', payload: { tasks } })
+
+    // Try to update task orders in database if online
+    if (isOnline && supabase) {
+      try {
+        // Update each task's order in the database
+        const updates = tasks.map(task => ({
+          id: task.id,
+          order: task.order,
+        }))
+
+        for (const update of updates) {
+          const { error } = await supabase
+            .from('tasks')
+            .update({ order: update.order })
+            .eq('id', update.id)
+
+          if (error) {
+            console.error(`Error updating task order for ${update.id}:`, error)
+          }
+        }
+      } catch (error) {
+        console.error('Error reordering tasks:', error)
       }
     }
   }
@@ -687,6 +739,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       updateTask,
       deleteTask,
       moveTask,
+      reorderTasks,
       addDailyReport,
       updateDailyReport,
       deleteDailyReport,

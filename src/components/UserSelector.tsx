@@ -32,8 +32,8 @@ export function UserSelector({
 
   const canSelectUser = (member: TeamMember): boolean => {
     if (!authState.user) return false
-    if (authState.user.userRole === 'admin') return true
-    return member.id === authState.user.id
+    // Allow all authenticated users to select any team member
+    return true
   }
 
   const availableMembers = state.teamMembers.filter(canSelectUser)

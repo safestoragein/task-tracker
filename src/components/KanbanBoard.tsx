@@ -29,7 +29,7 @@ const columns: Column[] = [
 ]
 
 export function KanbanBoard() {
-  const { state, dispatch, filteredTasks, moveTask, addTask } = useTask()
+  const { state, dispatch, filteredTasks, moveTask, addTask, reorderTasks } = useTask()
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
@@ -66,14 +66,7 @@ export function KanbanBoard() {
     }
 
     const taskId = active.id as string
-    const newStatus = over.id as TaskStatus
-
-    // Validate that we're dropping on a valid column
-    const validStatuses = ['backlog', 'todo', 'in-progress', 'review', 'done']
-    if (!validStatuses.includes(newStatus)) {
-      console.log('Invalid drop target:', newStatus)
-      return
-    }
+    const overId = over.id as string
 
     // Find the task being moved
     const task = filteredTasks.find(t => t.id === taskId)
@@ -82,19 +75,73 @@ export function KanbanBoard() {
       return
     }
 
-    // Only move if status is actually changing
-    if (task.status !== newStatus) {
-      console.log(`Moving task "${task.title}" from ${task.status} to ${newStatus}`)
-      moveTask(taskId, newStatus).catch(error => {
-        console.error('Failed to move task:', error)
-      })
+    // Check if we're dropping on a column (status change)
+    const validStatuses = ['backlog', 'todo', 'in-progress', 'review', 'done']
+    const isDroppedOnColumn = validStatuses.includes(overId)
+    
+    if (isDroppedOnColumn) {
+      const newStatus = overId as TaskStatus
+      
+      if (task.status !== newStatus) {
+        // Moving to different column
+        console.log(`Moving task "${task.title}" from ${task.status} to ${newStatus}`)
+        moveTask(taskId, newStatus).catch(error => {
+          console.error('Failed to move task:', error)
+        })
+      } else {
+        // Dropped on same column - no status change needed
+        console.log('Task dropped on same column, no status change needed')
+      }
     } else {
-      console.log('Task dropped on same column, no action needed')
+      // Dropped on another task - handle reordering
+      const overTask = filteredTasks.find(t => t.id === overId)
+      if (overTask && task.status === overTask.status) {
+        console.log(`Reordering task "${task.title}" within ${task.status} column`)
+        
+        // Get all tasks in the same column
+        const columnTasks = getTasksByStatus(task.status)
+        const activeIndex = columnTasks.findIndex(t => t.id === taskId)
+        const overIndex = columnTasks.findIndex(t => t.id === overId)
+        
+        if (activeIndex !== overIndex && activeIndex !== -1 && overIndex !== -1) {
+          // Create new ordered array
+          const reorderedTasks = [...columnTasks]
+          const [movedTask] = reorderedTasks.splice(activeIndex, 1)
+          reorderedTasks.splice(overIndex, 0, movedTask)
+          
+          // Update order values
+          const updatedTasks = reorderedTasks.map((task, index) => ({
+            ...task,
+            order: index,
+            updatedAt: new Date()
+          }))
+          
+          // Update all tasks with new order
+          const allTasksWithUpdatedOrder = filteredTasks.map(t => {
+            const updatedTask = updatedTasks.find(ut => ut.id === t.id)
+            return updatedTask || t
+          })
+          
+          reorderTasks(allTasksWithUpdatedOrder).catch(error => {
+            console.error('Failed to reorder tasks:', error)
+          })
+        }
+      }
     }
   }
 
   const getTasksByStatus = (status: TaskStatus) => {
-    return filteredTasks.filter(task => task.status === status)
+    return filteredTasks
+      .filter(task => task.status === status)
+      .sort((a, b) => {
+        // Sort by order if available, otherwise by creation date
+        const orderA = a.order ?? Number.MAX_SAFE_INTEGER
+        const orderB = b.order ?? Number.MAX_SAFE_INTEGER
+        if (orderA !== orderB) {
+          return orderA - orderB
+        }
+        return a.createdAt.getTime() - b.createdAt.getTime()
+      })
   }
 
   const getColumnTaskCount = (status: TaskStatus) => {

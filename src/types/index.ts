@@ -34,6 +34,7 @@ export interface Task {
   subtasks: Subtask[]
   comments: Comment[]
   attachments: Attachment[]
+  order?: number // Position within the column for drag & drop reordering
 }
 
 export interface Subtask {
