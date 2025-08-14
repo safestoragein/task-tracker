@@ -17,10 +17,10 @@ export function DailyReport() {
   const { state, dispatch } = useTask()
   const { state: authState, canEditDailyReport } = useAuth()
   const [isCreating, setIsCreating] = useState(false)
-  const [selectedDate, setSelectedDate] = useState('2025-08-11')
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
   const [selectedUserId, setSelectedUserId] = useState<string | undefined>(undefined)
   const [activeReportUserId, setActiveReportUserId] = useState<string | undefined>(undefined)
-  const [today, setToday] = useState('2025-08-11')
+  const [today, setToday] = useState(new Date().toISOString().split('T')[0])
   const [reportCounter, setReportCounter] = useState(1)
   const [formData, setFormData] = useState({
     yesterdayWork: '',
@@ -50,7 +50,7 @@ export function DailyReport() {
     if (!formData.yesterdayWork.trim() && !formData.todayPlan.trim()) return
     if (!canEditDailyReport(authorId)) return
 
-    const currentDate = new Date('2025-08-11')
+    const currentDate = new Date()
     const reportId = `report-${authorId}-${selectedDate}-${reportCounter}`
     const newReport: DailyReportType = {
       id: reportId,
