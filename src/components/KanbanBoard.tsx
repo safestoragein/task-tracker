@@ -29,16 +29,16 @@ const columns: Column[] = [
 ]
 
 export function KanbanBoard() {
-  const { state, dispatch, filteredTasks } = useTask()
+  const { state, dispatch, filteredTasks, moveTask, addTask } = useTask()
   const [activeTask, setActiveTask] = useState<Task | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // Require 8px movement before starting drag
-        delay: 100, // Small delay to prevent accidental drags
-        tolerance: 5, // Allow some tolerance for pointer movement
+        distance: 3, // Reduce distance for more responsive dragging
+        delay: 50, // Shorter delay for faster response
+        tolerance: 8, // Increase tolerance for smoother interaction
       },
     })
   )
@@ -85,9 +85,8 @@ export function KanbanBoard() {
     // Only move if status is actually changing
     if (task.status !== newStatus) {
       console.log(`Moving task "${task.title}" from ${task.status} to ${newStatus}`)
-      dispatch({
-        type: 'MOVE_TASK',
-        payload: { taskId, newStatus }
+      moveTask(taskId, newStatus).catch(error => {
+        console.error('Failed to move task:', error)
       })
     } else {
       console.log('Task dropped on same column, no action needed')
@@ -129,17 +128,30 @@ export function KanbanBoard() {
           ))}
         </div>
 
-        <DragOverlay>
-          {activeTask ? <TaskCard task={activeTask} isDragging /> : null}
+        <DragOverlay 
+          dropAnimation={{
+            duration: 200,
+            easing: 'cubic-bezier(0.18, 0.67, 0.6, 1.22)',
+          }}
+        >
+          {activeTask ? (
+            <div className="rotate-3 scale-105 opacity-95">
+              <TaskCard task={activeTask} isDragging />
+            </div>
+          ) : null}
         </DragOverlay>
       </DndContext>
 
       <TaskModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onSubmit={(task) => {
-          dispatch({ type: 'ADD_TASK', payload: task })
-          setIsCreateModalOpen(false)
+        onSubmit={async (task) => {
+          try {
+            await addTask(task)
+            setIsCreateModalOpen(false)
+          } catch (error) {
+            console.error('Failed to add task:', error)
+          }
         }}
       />
     </div>

@@ -45,10 +45,10 @@ export function KanbanColumn({ column, tasks, taskCount }: KanbanColumnProps) {
       <div
         ref={setNodeRef}
         className={cn(
-          "flex-1 min-h-32 p-2 rounded-lg transition-colors",
+          "flex-1 min-h-32 p-2 rounded-lg transition-all duration-200",
           isOver 
-            ? "bg-blue-50 dark:bg-blue-950 border-2 border-blue-200 dark:border-blue-800"
-            : "bg-gray-50 dark:bg-gray-800 border-2 border-transparent",
+            ? "bg-blue-50 dark:bg-blue-950 border-2 border-blue-300 dark:border-blue-700 shadow-lg scale-[1.02]"
+            : "bg-gray-50 dark:bg-gray-800 border-2 border-transparent hover:bg-gray-100 dark:hover:bg-gray-700",
           isOverLimit && "border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950"
         )}
       >
@@ -64,8 +64,18 @@ export function KanbanColumn({ column, tasks, taskCount }: KanbanColumnProps) {
         </SortableContext>
 
         {tasks.length === 0 && (
-          <div className="flex items-center justify-center h-24 text-gray-400 dark:text-gray-600 text-sm">
-            Drop tasks here
+          <div className={cn(
+            "flex flex-col items-center justify-center h-24 text-gray-400 dark:text-gray-600 text-sm transition-all duration-200",
+            isOver && "text-blue-500 dark:text-blue-400 scale-110"
+          )}>
+            <div className="font-medium">
+              {isOver ? "Release to drop task" : "Drop tasks here"}
+            </div>
+            {!isOver && (
+              <div className="text-xs mt-1 opacity-60">
+                Drag from any column
+              </div>
+            )}
           </div>
         )}
       </div>

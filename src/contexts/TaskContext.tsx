@@ -1,8 +1,9 @@
 'use client'
 
-import React, { createContext, useContext, useReducer, useEffect } from 'react'
+import React, { createContext, useContext, useReducer, useEffect, useState } from 'react'
 import { Task, TaskStatus, TeamMember, Label, FilterState, DailyReport, TaskState } from '@/types'
 import { supabase } from '@/lib/supabase'
+import { LocalStorageManager } from '@/lib/localStorage'
 
 export type TaskAction =
   | { type: 'SET_TASKS'; payload: Task[] }
@@ -34,13 +35,21 @@ const initialState: TaskState = {
 }
 
 function taskReducer(state: TaskState, action: TaskAction): TaskState {
+  let newState: TaskState
+
   switch (action.type) {
     case 'SET_TASKS':
-      return { ...state, tasks: action.payload }
+      newState = { ...state, tasks: action.payload }
+      LocalStorageManager.setTasks(action.payload)
+      return newState
+
     case 'ADD_TASK':
-      return { ...state, tasks: [...state.tasks, action.payload] }
+      newState = { ...state, tasks: [...state.tasks, action.payload] }
+      LocalStorageManager.setTasks(newState.tasks)
+      return newState
+
     case 'UPDATE_TASK':
-      return {
+      newState = {
         ...state,
         tasks: state.tasks.map(task =>
           task.id === action.payload.id
@@ -48,13 +57,19 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
             : task
         )
       }
+      LocalStorageManager.setTasks(newState.tasks)
+      return newState
+
     case 'DELETE_TASK':
-      return {
+      newState = {
         ...state,
         tasks: state.tasks.filter(task => task.id !== action.payload)
       }
+      LocalStorageManager.setTasks(newState.tasks)
+      return newState
+
     case 'MOVE_TASK':
-      return {
+      newState = {
         ...state,
         tasks: state.tasks.map(task =>
           task.id === action.payload.taskId
@@ -62,21 +77,33 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
             : task
         )
       }
+      LocalStorageManager.setTasks(newState.tasks)
+      return newState
+
     case 'SET_TEAM_MEMBERS':
+      LocalStorageManager.setTeamMembers(action.payload)
       return { ...state, teamMembers: action.payload }
+
     case 'SET_LABELS':
+      LocalStorageManager.setLabels(action.payload)
       return { ...state, labels: action.payload }
+
     case 'SET_FILTERS':
       return { ...state, filters: action.payload }
+
     case 'UPDATE_FILTERS':
       return {
         ...state,
         filters: { ...state.filters, ...action.payload }
       }
+
     case 'ADD_DAILY_REPORT':
-      return { ...state, dailyReports: [...state.dailyReports, action.payload] }
+      newState = { ...state, dailyReports: [...state.dailyReports, action.payload] }
+      LocalStorageManager.setDailyReports(newState.dailyReports)
+      return newState
+
     case 'UPDATE_DAILY_REPORT':
-      return {
+      newState = {
         ...state,
         dailyReports: state.dailyReports.map(report =>
           report.id === action.payload.id
@@ -84,13 +111,21 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
             : report
         )
       }
+      LocalStorageManager.setDailyReports(newState.dailyReports)
+      return newState
+
     case 'DELETE_DAILY_REPORT':
-      return {
+      newState = {
         ...state,
         dailyReports: state.dailyReports.filter(report => report.id !== action.payload)
       }
+      LocalStorageManager.setDailyReports(newState.dailyReports)
+      return newState
+
     case 'SET_DAILY_REPORTS':
+      LocalStorageManager.setDailyReports(action.payload)
       return { ...state, dailyReports: action.payload }
+
     default:
       return state
   }
@@ -127,7 +162,7 @@ function convertTaskToSupabase(task: Task) {
     assignee_id: task.assigneeId,
     due_date: task.dueDate?.toISOString(),
     estimated_hours: task.estimatedHours,
-    labels: task.labels?.map(l => l.name) || [],
+    labels: task.labels?.map(l => typeof l === 'string' ? l : l.name) || [],
     subtasks: task.subtasks || [],
     comments: task.comments || [],
     attachments: task.attachments || [],
@@ -138,6 +173,9 @@ export const TaskContext = createContext<{
   state: TaskState
   dispatch: React.Dispatch<TaskAction>
   filteredTasks: Task[]
+  isOnline: boolean
+  isSyncing: boolean
+  lastSyncTime: Date | null
   addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
   updateTask: (id: string, updates: Partial<Task>) => Promise<void>
   deleteTask: (id: string) => Promise<void>
@@ -145,26 +183,110 @@ export const TaskContext = createContext<{
   addDailyReport: (report: Omit<DailyReport, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
   updateDailyReport: (id: string, updates: Partial<DailyReport>) => Promise<void>
   deleteDailyReport: (id: string) => Promise<void>
+  syncWithDatabase: () => Promise<void>
 } | null>(null)
 
 export function TaskProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(taskReducer, initialState)
+  const [isOnline, setIsOnline] = useState(true)
+  const [isSyncing, setIsSyncing] = useState(false)
+  const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null)
+  const [subscriptions, setSubscriptions] = useState<any[]>([])
 
-  // Load initial data from Supabase
+  // Initialize data from local storage first
   useEffect(() => {
-    loadInitialData()
-    setupRealtimeSubscriptions()
+    LocalStorageManager.initializeDefaults()
+    loadFromLocalStorage()
+    setLastSyncTime(LocalStorageManager.getLastSyncTime())
   }, [])
 
-  const loadInitialData = async () => {
+  // Load data from database after local storage
+  useEffect(() => {
+    loadFromDatabase()
+    const subs = setupRealtimeSubscriptions()
+    setSubscriptions(subs)
+
+    // Cleanup subscriptions
+    return () => {
+      subs.forEach(sub => sub.unsubscribe())
+    }
+  }, [])
+
+  // Monitor online status
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOnline(true)
+    }
+
+    const handleOffline = () => {
+      setIsOnline(false)
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    // Check initial status
+    setIsOnline(navigator.onLine)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  // Sync when coming back online
+  useEffect(() => {
+    if (isOnline && !isSyncing) {
+      loadFromDatabase()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline])
+
+  const loadFromLocalStorage = () => {
     try {
+      const tasks = LocalStorageManager.getTasks()
+      const teamMembers = LocalStorageManager.getTeamMembers()
+      const labels = LocalStorageManager.getLabels()
+      const dailyReports = LocalStorageManager.getDailyReports()
+
+      if (tasks.length > 0) {
+        dispatch({ type: 'SET_TASKS', payload: tasks })
+      }
+      if (teamMembers.length > 0) {
+        dispatch({ type: 'SET_TEAM_MEMBERS', payload: teamMembers })
+      }
+      if (labels.length > 0) {
+        dispatch({ type: 'SET_LABELS', payload: labels })
+      }
+      if (dailyReports.length > 0) {
+        dispatch({ type: 'SET_DAILY_REPORTS', payload: dailyReports })
+      }
+    } catch (error) {
+      console.error('Error loading from local storage:', error)
+    }
+  }
+
+  const loadFromDatabase = async () => {
+    try {
+      setIsSyncing(true)
+
+      // Check if Supabase is configured
+      if (!supabase || !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+        console.warn('Supabase not configured, using local storage only')
+        setIsOnline(false)
+        return
+      }
+
       // Load team members
-      const { data: teamMembers } = await supabase
+      const { data: teamMembers, error: teamError } = await supabase
         .from('team_members')
         .select('*')
         .order('name')
 
-      if (teamMembers) {
+      if (teamError) {
+        console.error('Error loading team members:', teamError)
+        setIsOnline(false)
+      } else if (teamMembers && teamMembers.length > 0) {
         dispatch({
           type: 'SET_TEAM_MEMBERS',
           payload: teamMembers.map((member: any) => ({
@@ -179,12 +301,14 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Load labels
-      const { data: labels } = await supabase
+      const { data: labels, error: labelError } = await supabase
         .from('labels')
         .select('*')
         .order('name')
 
-      if (labels) {
+      if (labelError) {
+        console.error('Error loading labels:', labelError)
+      } else if (labels && labels.length > 0) {
         dispatch({
           type: 'SET_LABELS',
           payload: labels.map((label: any) => ({
@@ -196,12 +320,14 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Load tasks
-      const { data: tasks } = await supabase
+      const { data: tasks, error: taskError } = await supabase
         .from('tasks')
         .select('*')
         .order('created_at', { ascending: false })
 
-      if (tasks) {
+      if (taskError) {
+        console.error('Error loading tasks:', taskError)
+      } else if (tasks && tasks.length > 0) {
         dispatch({
           type: 'SET_TASKS',
           payload: tasks.map(convertSupabaseTask)
@@ -209,12 +335,14 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       }
 
       // Load daily reports
-      const { data: reports } = await supabase
+      const { data: reports, error: reportError } = await supabase
         .from('daily_reports')
         .select('*')
         .order('date', { ascending: false })
 
-      if (reports) {
+      if (reportError) {
+        console.error('Error loading daily reports:', reportError)
+      } else if (reports && reports.length > 0) {
         dispatch({
           type: 'SET_DAILY_REPORTS',
           payload: reports.map((report: any) => ({
@@ -232,207 +360,282 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
           }))
         })
       }
+
+      // Update sync time on successful load
+      if (!teamError && !taskError) {
+        const now = new Date()
+        LocalStorageManager.setLastSyncTime(now)
+        setLastSyncTime(now)
+      }
     } catch (error) {
-      console.error('Error loading initial data:', error)
+      console.error('Error loading from database:', error)
+      setIsOnline(false)
+    } finally {
+      setIsSyncing(false)
     }
   }
 
   const setupRealtimeSubscriptions = () => {
-    // Subscribe to task changes
-    supabase
-      .channel('tasks')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, async () => {
-        // Reload tasks when they change
-        const { data: tasks } = await supabase
-          .from('tasks')
-          .select('*')
-          .order('created_at', { ascending: false })
-        
-        if (tasks) {
-          dispatch({
-            type: 'SET_TASKS',
-            payload: tasks.map(convertSupabaseTask)
-          })
-        }
-      })
-      .subscribe()
+    const subscriptions: any[] = []
 
-    // Subscribe to daily report changes
-    supabase
-      .channel('daily_reports')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_reports' }, async () => {
-        const { data: reports } = await supabase
-          .from('daily_reports')
-          .select('*')
-          .order('date', { ascending: false })
-        
-        if (reports) {
-          dispatch({
-            type: 'SET_DAILY_REPORTS',
-            payload: reports.map((report: any) => ({
-              id: report.id,
-              authorId: report.author_id,
-              date: report.date,
-              tasksCompleted: report.tasks_completed || [],
-              tasksInProgress: report.tasks_in_progress || [],
-              blockers: report.blockers || [],
-              notes: report.notes || '',
-              yesterdayWork: report.yesterday_work || '',
-              todayPlan: report.today_plan || '',
-              createdAt: new Date(report.created_at),
-              updatedAt: new Date(report.updated_at),
-            }))
-          })
-        }
-      })
-      .subscribe()
+    if (!supabase) {
+      return subscriptions
+    }
+
+    try {
+      // Subscribe to task changes
+      const taskSub = supabase
+        .channel('tasks')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, async () => {
+          const { data: tasks } = await supabase
+            .from('tasks')
+            .select('*')
+            .order('created_at', { ascending: false })
+          
+          if (tasks) {
+            dispatch({
+              type: 'SET_TASKS',
+              payload: tasks.map(convertSupabaseTask)
+            })
+          }
+        })
+        .subscribe()
+
+      subscriptions.push(taskSub)
+
+      // Subscribe to daily report changes
+      const reportSub = supabase
+        .channel('daily_reports')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_reports' }, async () => {
+          const { data: reports } = await supabase
+            .from('daily_reports')
+            .select('*')
+            .order('date', { ascending: false })
+          
+          if (reports) {
+            dispatch({
+              type: 'SET_DAILY_REPORTS',
+              payload: reports.map((report: any) => ({
+                id: report.id,
+                authorId: report.author_id,
+                date: report.date,
+                tasksCompleted: report.tasks_completed || [],
+                tasksInProgress: report.tasks_in_progress || [],
+                blockers: report.blockers || [],
+                notes: report.notes || '',
+                yesterdayWork: report.yesterday_work || '',
+                todayPlan: report.today_plan || '',
+                createdAt: new Date(report.created_at),
+                updatedAt: new Date(report.updated_at),
+              }))
+            })
+          }
+        })
+        .subscribe()
+
+      subscriptions.push(reportSub)
+    } catch (error) {
+      console.error('Error setting up realtime subscriptions:', error)
+    }
+
+    return subscriptions
+  }
+
+  const syncWithDatabase = async () => {
+    if (!isOnline) return
+
+    try {
+      setIsSyncing(true)
+      await loadFromDatabase()
+    } catch (error) {
+      console.error('Error syncing with database:', error)
+    } finally {
+      setIsSyncing(false)
+    }
   }
 
   const addTask = async (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
-    try {
-      const newTask: Task = {
-        ...taskData,
-        id: crypto.randomUUID(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
+    const newTask: Task = {
+      ...taskData,
+      id: crypto.randomUUID(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    // Add to local state immediately
+    dispatch({ type: 'ADD_TASK', payload: newTask })
+
+    // Try to add to database if online
+    if (isOnline && supabase) {
+      try {
+        const { error } = await supabase
+          .from('tasks')
+          .insert([convertTaskToSupabase(newTask)])
+
+        if (error) {
+          console.error('Error adding task to database:', error)
+          // Task is already in local state, so user can continue working
+        }
+      } catch (error) {
+        console.error('Error adding task:', error)
       }
-
-      const { error } = await supabase
-        .from('tasks')
-        .insert([convertTaskToSupabase(newTask)])
-
-      if (error) throw error
-
-      dispatch({ type: 'ADD_TASK', payload: newTask })
-    } catch (error) {
-      console.error('Error adding task:', error)
-      throw error
     }
   }
 
   const updateTask = async (id: string, updates: Partial<Task>) => {
-    try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({
-          ...updates,
-          assignee_id: updates.assigneeId,
-          due_date: updates.dueDate?.toISOString(),
-          estimated_hours: updates.estimatedHours,
-        })
-        .eq('id', id)
+    // Update local state immediately
+    dispatch({ type: 'UPDATE_TASK', payload: { id, updates } })
 
-      if (error) throw error
+    // Try to update in database if online
+    if (isOnline && supabase) {
+      try {
+        const { error } = await supabase
+          .from('tasks')
+          .update({
+            ...updates,
+            assignee_id: updates.assigneeId,
+            due_date: updates.dueDate?.toISOString(),
+            estimated_hours: updates.estimatedHours,
+            labels: updates.labels?.map(l => typeof l === 'string' ? l : l.name),
+          })
+          .eq('id', id)
 
-      dispatch({ type: 'UPDATE_TASK', payload: { id, updates } })
-    } catch (error) {
-      console.error('Error updating task:', error)
-      throw error
+        if (error) {
+          console.error('Error updating task in database:', error)
+        }
+      } catch (error) {
+        console.error('Error updating task:', error)
+      }
     }
   }
 
   const deleteTask = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('tasks')
-        .delete()
-        .eq('id', id)
+    // Delete from local state immediately
+    dispatch({ type: 'DELETE_TASK', payload: id })
 
-      if (error) throw error
+    // Try to delete from database if online
+    if (isOnline && supabase) {
+      try {
+        const { error } = await supabase
+          .from('tasks')
+          .delete()
+          .eq('id', id)
 
-      dispatch({ type: 'DELETE_TASK', payload: id })
-    } catch (error) {
-      console.error('Error deleting task:', error)
-      throw error
+        if (error) {
+          console.error('Error deleting task from database:', error)
+        }
+      } catch (error) {
+        console.error('Error deleting task:', error)
+      }
     }
   }
 
   const moveTask = async (taskId: string, newStatus: TaskStatus) => {
-    try {
-      const { error } = await supabase
-        .from('tasks')
-        .update({ status: newStatus })
-        .eq('id', taskId)
+    // Move in local state immediately
+    dispatch({ type: 'MOVE_TASK', payload: { taskId, newStatus } })
 
-      if (error) throw error
+    // Try to update in database if online
+    if (isOnline && supabase) {
+      try {
+        const { error } = await supabase
+          .from('tasks')
+          .update({ status: newStatus })
+          .eq('id', taskId)
 
-      dispatch({ type: 'MOVE_TASK', payload: { taskId, newStatus } })
-    } catch (error) {
-      console.error('Error moving task:', error)
-      throw error
+        if (error) {
+          console.error('Error moving task in database:', error)
+        }
+      } catch (error) {
+        console.error('Error moving task:', error)
+      }
     }
   }
 
   const addDailyReport = async (reportData: Omit<DailyReport, 'id' | 'createdAt' | 'updatedAt'>) => {
-    try {
-      const newReport: DailyReport = {
-        ...reportData,
-        id: crypto.randomUUID(),
-        createdAt: new Date(),
-        updatedAt: new Date(),
+    const newReport: DailyReport = {
+      ...reportData,
+      id: crypto.randomUUID(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    // Add to local state immediately
+    dispatch({ type: 'ADD_DAILY_REPORT', payload: newReport })
+
+    // Try to add to database if online
+    if (isOnline) {
+      try {
+        const { error } = await supabase
+          .from('daily_reports')
+          .insert([{
+            id: newReport.id,
+            author_id: newReport.authorId,
+            date: newReport.date,
+            tasks_completed: newReport.tasksCompleted || [],
+            tasks_in_progress: newReport.tasksInProgress || [],
+            blockers: newReport.blockers || [],
+            notes: newReport.notes || '',
+            yesterday_work: newReport.yesterdayWork || '',
+            today_plan: newReport.todayPlan || '',
+          }])
+
+        if (error) {
+          console.error('Error adding daily report to database:', error)
+        }
+      } catch (error) {
+        console.error('Error adding daily report:', error)
       }
-
-      const { error } = await supabase
-        .from('daily_reports')
-        .insert([{
-          id: newReport.id,
-          author_id: newReport.authorId,
-          date: newReport.date,
-          tasks_completed: newReport.tasksCompleted || [],
-          tasks_in_progress: newReport.tasksInProgress || [],
-          blockers: newReport.blockers || [],
-          notes: newReport.notes || '',
-          yesterday_work: newReport.yesterdayWork || '',
-          today_plan: newReport.todayPlan || '',
-        }])
-
-      if (error) throw error
-
-      dispatch({ type: 'ADD_DAILY_REPORT', payload: newReport })
-    } catch (error) {
-      console.error('Error adding daily report:', error)
-      throw error
     }
   }
 
   const updateDailyReport = async (id: string, updates: Partial<DailyReport>) => {
-    try {
-      const { error } = await supabase
-        .from('daily_reports')
-        .update({
-          author_id: updates.authorId,
-          date: updates.date,
-          tasks_completed: updates.tasksCompleted,
-          tasks_in_progress: updates.tasksInProgress,
-          blockers: updates.blockers,
-          notes: updates.notes,
-          yesterday_work: updates.yesterdayWork,
-          today_plan: updates.todayPlan,
-        })
-        .eq('id', id)
+    // Update local state immediately
+    dispatch({ type: 'UPDATE_DAILY_REPORT', payload: { id, updates } })
 
-      if (error) throw error
+    // Try to update in database if online
+    if (isOnline && supabase) {
+      try {
+        const { error } = await supabase
+          .from('daily_reports')
+          .update({
+            author_id: updates.authorId,
+            date: updates.date,
+            tasks_completed: updates.tasksCompleted,
+            tasks_in_progress: updates.tasksInProgress,
+            blockers: updates.blockers,
+            notes: updates.notes,
+            yesterday_work: updates.yesterdayWork,
+            today_plan: updates.todayPlan,
+          })
+          .eq('id', id)
 
-      dispatch({ type: 'UPDATE_DAILY_REPORT', payload: { id, updates } })
-    } catch (error) {
-      console.error('Error updating daily report:', error)
-      throw error
+        if (error) {
+          console.error('Error updating daily report in database:', error)
+        }
+      } catch (error) {
+        console.error('Error updating daily report:', error)
+      }
     }
   }
 
   const deleteDailyReport = async (id: string) => {
-    try {
-      const { error } = await supabase
-        .from('daily_reports')
-        .delete()
-        .eq('id', id)
+    // Delete from local state immediately
+    dispatch({ type: 'DELETE_DAILY_REPORT', payload: id })
 
-      if (error) throw error
+    // Try to delete from database if online
+    if (isOnline && supabase) {
+      try {
+        const { error } = await supabase
+          .from('daily_reports')
+          .delete()
+          .eq('id', id)
 
-      dispatch({ type: 'DELETE_DAILY_REPORT', payload: id })
-    } catch (error) {
-      console.error('Error deleting daily report:', error)
-      throw error
+        if (error) {
+          console.error('Error deleting daily report from database:', error)
+        }
+      } catch (error) {
+        console.error('Error deleting daily report:', error)
+      }
     }
   }
 
@@ -452,8 +655,13 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       return false
     }
 
-    if (labels.length > 0 && !task.labels.some(label => labels.includes(label.id))) {
-      return false
+    if (labels.length > 0) {
+      const taskLabelIds = task.labels.map(label => 
+        typeof label === 'string' ? label : label.id
+      )
+      if (!labels.some(labelId => taskLabelIds.includes(labelId))) {
+        return false
+      }
     }
 
     if (dueDate.from && task.dueDate && task.dueDate < dueDate.from) {
@@ -472,6 +680,9 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       state,
       dispatch,
       filteredTasks,
+      isOnline,
+      isSyncing,
+      lastSyncTime,
       addTask,
       updateTask,
       deleteTask,
@@ -479,6 +690,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       addDailyReport,
       updateDailyReport,
       deleteDailyReport,
+      syncWithDatabase,
     }}>
       {children}
     </TaskContext.Provider>

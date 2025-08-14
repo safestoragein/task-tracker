@@ -40,7 +40,7 @@ type SortField = 'title' | 'status' | 'priority' | 'dueDate' | 'createdAt' | 'as
 type SortDirection = 'asc' | 'desc'
 
 export function ListView() {
-  const { state, dispatch, filteredTasks } = useTask()
+  const { state, dispatch, filteredTasks, moveTask, updateTask } = useTask()
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
   const [isTaskModalOpen, setIsTaskModalOpen] = useState(false)
   const [sortField, setSortField] = useState<SortField>('createdAt')
@@ -131,12 +131,20 @@ export function ListView() {
     }
   }
 
-  const handleTaskUpdate = (updatedTask: Task) => {
-    dispatch({ type: 'UPDATE_TASK', payload: { id: updatedTask.id, updates: updatedTask } })
+  const handleTaskUpdate = async (updatedTask: Task) => {
+    try {
+      await updateTask(updatedTask.id, updatedTask)
+    } catch (error) {
+      console.error('Failed to update task:', error)
+    }
   }
 
-  const handleStatusChange = (taskId: string, newStatus: TaskStatus) => {
-    dispatch({ type: 'MOVE_TASK', payload: { taskId, newStatus } })
+  const handleStatusChange = async (taskId: string, newStatus: TaskStatus) => {
+    try {
+      await moveTask(taskId, newStatus)
+    } catch (error) {
+      console.error('Failed to move task:', error)
+    }
   }
 
   const getPriorityColor = (priority: Priority) => {

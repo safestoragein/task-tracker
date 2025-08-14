@@ -20,7 +20,7 @@ interface TaskCardProps {
 }
 
 export function TaskCard({ task, isDragging = false }: TaskCardProps) {
-  const { state, dispatch } = useTask()
+  const { state, dispatch, updateTask, deleteTask } = useTask()
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
@@ -51,7 +51,7 @@ export function TaskCard({ task, isDragging = false }: TaskCardProps) {
     setIsEditModalOpen(true)
   }
 
-  const handleDelete = (e?: React.MouseEvent) => {
+  const handleDelete = async (e?: React.MouseEvent) => {
     // Stop any potential event propagation
     if (e) {
       e.preventDefault()
@@ -59,18 +59,35 @@ export function TaskCard({ task, isDragging = false }: TaskCardProps) {
     }
     
     if (confirm('Are you sure you want to delete this task?')) {
-      dispatch({ type: 'DELETE_TASK', payload: task.id })
+      try {
+        await deleteTask(task.id)
+      } catch (error) {
+        console.error('Failed to delete task:', error)
+      }
     }
     setIsDropdownOpen(false)
   }
 
   if (isDragging || isSortableDragging) {
     return (
-      <Card className="task-card cursor-grabbing opacity-50 rotate-3 shadow-lg">
+      <Card className="task-card cursor-grabbing opacity-80 rotate-2 shadow-2xl border-l-4 scale-105 drag-overlay bg-white dark:bg-gray-900">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
-            <h4 className="font-medium text-sm line-clamp-2">{task.title}</h4>
+            <h4 className="font-medium text-sm line-clamp-2 text-gray-700 dark:text-gray-200">
+              {task.title}
+            </h4>
+            <div className={cn(
+              "w-2 h-2 rounded-full",
+              task.priority === 'high' && "bg-red-500",
+              task.priority === 'medium' && "bg-yellow-500",
+              task.priority === 'low' && "bg-green-500"
+            )} />
           </div>
+          {task.description && (
+            <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 mt-1">
+              {task.description}
+            </p>
+          )}
         </CardHeader>
       </Card>
     )
@@ -82,22 +99,31 @@ export function TaskCard({ task, isDragging = false }: TaskCardProps) {
         ref={setNodeRef}
         style={style}
         {...attributes}
+        {...listeners} // Apply drag listeners to the entire card
+        tabIndex={0} // Make card focusable for keyboard navigation
+        role="button"
+        aria-label={`Task: ${task.title}. Status: ${task.status}. Priority: ${task.priority}`}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            handleEdit()
+          }
+        }}
         className={cn(
-          "task-card hover:shadow-md border-l-4 group relative",
+          "task-card hover:shadow-md border-l-4 group relative transition-all duration-200",
           task.priority === 'high' && "border-l-red-500",
           task.priority === 'medium' && "border-l-yellow-500",
           task.priority === 'low' && "border-l-green-500",
           isOverdue && "bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800",
           // Add cursor styles conditionally
-          !isDropdownOpen && "cursor-grab"
+          !isDropdownOpen && "cursor-grab hover:shadow-lg hover:scale-[1.02]",
+          // Add active dragging state
+          isSortableDragging && "opacity-50 scale-105 rotate-1 shadow-2xl cursor-grabbing"
         )}
       >
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
-            <div 
-              {...listeners} 
-              className="font-medium text-sm line-clamp-2 flex-1 cursor-grab"
-            >
+            <div className="font-medium text-sm line-clamp-2 flex-1">
               {task.title}
             </div>
             <DropdownMenu 
@@ -108,7 +134,7 @@ export function TaskCard({ task, isDragging = false }: TaskCardProps) {
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  className="h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
                   onClick={(e) => {
                     e.preventDefault()
                     e.stopPropagation()
@@ -117,7 +143,18 @@ export function TaskCard({ task, isDragging = false }: TaskCardProps) {
                   onPointerDown={(e) => {
                     // Prevent drag from starting when clicking on dropdown
                     e.stopPropagation()
+                    e.preventDefault()
                   }}
+                  onMouseDown={(e) => {
+                    // Additional prevention for mouse events
+                    e.stopPropagation()
+                    e.preventDefault()
+                  }}
+                  onTouchStart={(e) => {
+                    // Prevent on touch devices
+                    e.stopPropagation()
+                  }}
+                  style={{ pointerEvents: 'auto' }}
                 >
                   <MoreHorizontal className="h-3 w-3" />
                 </Button>
@@ -153,7 +190,7 @@ export function TaskCard({ task, isDragging = false }: TaskCardProps) {
           )}
         </CardHeader>
 
-        <CardContent className="pt-0 space-y-3" {...listeners}>
+        <CardContent className="pt-0 space-y-3">
           {/* Labels */}
           {task.labels.length > 0 && (
             <div className="flex flex-wrap gap-1">
@@ -257,12 +294,13 @@ export function TaskCard({ task, isDragging = false }: TaskCardProps) {
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
         task={task}
-        onSubmit={(updatedTask) => {
-          dispatch({
-            type: 'UPDATE_TASK',
-            payload: { id: task.id, updates: updatedTask }
-          })
-          setIsEditModalOpen(false)
+        onSubmit={async (updatedTask) => {
+          try {
+            await updateTask(task.id, updatedTask)
+            setIsEditModalOpen(false)
+          } catch (error) {
+            console.error('Failed to update task:', error)
+          }
         }}
       />
     </>

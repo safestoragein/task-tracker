@@ -1,6 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Import custom kanban drag-and-drop styles */
+@import '../styles/kanban.css';
  
 @layer base {
   :root {

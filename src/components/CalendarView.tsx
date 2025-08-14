@@ -20,7 +20,7 @@ import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameMonth, isSam
 import { cn } from '@/lib/utils'
 
 export function CalendarView() {
-  const { state, dispatch, filteredTasks } = useTask()
+  const { state, dispatch, filteredTasks, updateTask, addTask } = useTask()
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const [selectedTask, setSelectedTask] = useState<Task | null>(null)
@@ -54,8 +54,30 @@ export function CalendarView() {
     return tasksByDate[dateKey] || []
   }, [selectedDate, tasksByDate])
 
-  const handleTaskUpdate = (updatedTask: Task) => {
-    dispatch({ type: 'UPDATE_TASK', payload: { id: updatedTask.id, updates: updatedTask } })
+  const handleTaskUpdate = async (taskData: Task) => {
+    try {
+      if (taskData.id && taskData.id !== '') {
+        // Update existing task
+        await updateTask(taskData.id, taskData)
+      } else {
+        // Create new task
+        await addTask({
+          title: taskData.title,
+          description: taskData.description,
+          status: taskData.status,
+          priority: taskData.priority,
+          assigneeId: taskData.assigneeId,
+          dueDate: taskData.dueDate,
+          estimatedHours: taskData.estimatedHours,
+          labels: taskData.labels,
+          subtasks: taskData.subtasks,
+          comments: taskData.comments,
+          attachments: taskData.attachments,
+        })
+      }
+    } catch (error) {
+      console.error('Failed to save task:', error)
+    }
   }
 
   const handleCreateTask = () => {

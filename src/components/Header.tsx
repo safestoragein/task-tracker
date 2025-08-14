@@ -9,10 +9,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSepara
 import { Badge } from './ui/badge'
 import { QuickTaskInput } from './QuickTaskInput'
 import { CommandPalette } from './CommandPalette'
-import { Building2, Settings, Users, Bell, Moon, Sun, LogOut, Command, Plus, Shield } from 'lucide-react'
+import { Building2, Settings, Users, Bell, Moon, Sun, LogOut, Command, Plus, Shield, Cloud, CloudOff, RefreshCw } from 'lucide-react'
 
 export function Header() {
-  const { state, filteredTasks } = useTask()
+  const { state, filteredTasks, isOnline, isSyncing, lastSyncTime, syncWithDatabase } = useTask()
   const { state: authState, logout } = useAuth()
   const [isDark, setIsDark] = useState(false)
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false)
@@ -92,6 +92,38 @@ export function Header() {
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-3">
+            {/* Sync Status Indicator */}
+            <div className="flex items-center gap-2 px-3 py-1 rounded-lg bg-muted/50">
+              {isSyncing ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin text-blue-600" />
+                  <span className="text-xs text-muted-foreground">Syncing...</span>
+                </>
+              ) : isOnline ? (
+                <>
+                  <Cloud className="h-4 w-4 text-green-600" />
+                  <span className="text-xs text-muted-foreground">
+                    {lastSyncTime ? `Synced ${new Date(lastSyncTime).toLocaleTimeString()}` : 'Online'}
+                  </span>
+                </>
+              ) : (
+                <>
+                  <CloudOff className="h-4 w-4 text-orange-600" />
+                  <span className="text-xs text-muted-foreground">Offline</span>
+                </>
+              )}
+              {!isSyncing && isOnline && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 w-6 p-0"
+                  onClick={syncWithDatabase}
+                >
+                  <RefreshCw className="h-3 w-3" />
+                </Button>
+              )}
+            </div>
+
             {/* Quick Actions for Mobile */}
             <div className="flex md:hidden gap-1">
               <Button variant="ghost" size="sm" onClick={() => setIsCommandPaletteOpen(true)}>
