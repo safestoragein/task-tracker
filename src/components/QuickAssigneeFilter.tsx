@@ -43,7 +43,8 @@ export function QuickAssigneeFilter() {
   }
 
   const getTaskCount = (memberId: string) => {
-    return filteredTasks.filter(task => task.assigneeId === memberId).length
+    // Get total tasks assigned to this member (not filtered by current filters)
+    return state.tasks.filter(task => task.assigneeId === memberId).length
   }
 
   if (visibleMembers.length === 0) {
@@ -67,7 +68,7 @@ export function QuickAssigneeFilter() {
         >
           All Tasks
           <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
-            {filteredTasks.length}
+            {state.tasks.length}
           </Badge>
         </Button>
 
