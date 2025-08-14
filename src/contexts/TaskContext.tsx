@@ -7,6 +7,7 @@ import { LocalStorageManager } from '@/lib/localStorage'
 
 export type TaskAction =
   | { type: 'SET_TASKS'; payload: Task[] }
+  | { type: 'SET_TASKS_FROM_DB'; payload: Task[] }
   | { type: 'ADD_TASK'; payload: Task }
   | { type: 'UPDATE_TASK'; payload: { id: string; updates: Partial<Task> } }
   | { type: 'DELETE_TASK'; payload: string }
@@ -43,6 +44,16 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
       newState = { ...state, tasks: action.payload }
       LocalStorageManager.setTasks(action.payload)
       return newState
+
+    case 'SET_TASKS_FROM_DB':
+      // Only update state and localStorage if we have tasks from database
+      if (action.payload.length > 0) {
+        newState = { ...state, tasks: action.payload }
+        LocalStorageManager.setTasks(action.payload)
+        return newState
+      }
+      // If database returns empty, keep current state
+      return state
 
     case 'ADD_TASK':
       newState = { ...state, tasks: [...state.tasks, action.payload] }
@@ -334,9 +345,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 
       if (taskError) {
         console.error('Error loading tasks:', taskError)
-      } else if (tasks && tasks.length > 0) {
+        // Keep existing local data on database error
+      } else if (tasks) {
+        // Use SET_TASKS_FROM_DB which only overwrites if we have data
         dispatch({
-          type: 'SET_TASKS',
+          type: 'SET_TASKS_FROM_DB',
           payload: tasks.map(convertSupabaseTask)
         })
       }
@@ -401,7 +414,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
           
           if (tasks) {
             dispatch({
-              type: 'SET_TASKS',
+              type: 'SET_TASKS_FROM_DB',
               payload: tasks.map(convertSupabaseTask)
             })
           }
