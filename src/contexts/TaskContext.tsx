@@ -46,13 +46,42 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
       return newState
 
     case 'SET_TASKS_FROM_DB':
-      // Only update state and localStorage if we have tasks from database
+      // Merge database tasks with local tasks to preserve local changes
       if (action.payload.length > 0) {
-        newState = { ...state, tasks: action.payload }
-        LocalStorageManager.setTasks(action.payload)
+        // Get local tasks that might have newer updates
+        const localTasks = LocalStorageManager.getTasks()
+        
+        // Create a map of database tasks by ID
+        const dbTasksMap = new Map(action.payload.map(task => [task.id, task]))
+        
+        // Create a map of local tasks by ID
+        const localTasksMap = new Map(localTasks.map(task => [task.id, task]))
+        
+        // Merge tasks: use local version if it's newer, otherwise use database version
+        const mergedTasks: Task[] = []
+        
+        // Add all database tasks, but use local version if it's newer
+        action.payload.forEach(dbTask => {
+          const localTask = localTasksMap.get(dbTask.id)
+          if (localTask && localTask.updatedAt > dbTask.updatedAt) {
+            mergedTasks.push(localTask)
+          } else {
+            mergedTasks.push(dbTask)
+          }
+        })
+        
+        // Add any local-only tasks that aren't in the database yet
+        localTasks.forEach(localTask => {
+          if (!dbTasksMap.has(localTask.id)) {
+            mergedTasks.push(localTask)
+          }
+        })
+        
+        newState = { ...state, tasks: mergedTasks }
+        LocalStorageManager.setTasks(mergedTasks)
         return newState
       }
-      // If database returns empty, keep current state
+      // If database returns empty, keep current local tasks
       return state
 
     case 'ADD_TASK':

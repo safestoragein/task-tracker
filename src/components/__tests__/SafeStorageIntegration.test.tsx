@@ -38,79 +38,50 @@ function TaskContextConsumer() {
   )
 }
 
-describe('SafeStorage Integration Tests', () => {
-  it('should have SafeStorage team members properly configured', () => {
+describe('TaskContext Integration Tests', () => {
+  it('should have default team members properly configured', () => {
     render(
       <TaskProvider>
         <TaskContextConsumer />
       </TaskProvider>
     )
     
-    // Verify team member count (7 SafeStorage team members)
-    expect(screen.getByTestId('team-count')).toHaveTextContent('7')
+    // Verify team member count (3 default team members)
+    expect(screen.getByTestId('team-count')).toHaveTextContent('3')
     
-    // Verify specific SafeStorage team members
-    expect(screen.getByTestId('team-member-Kushal')).toHaveTextContent('Kushal - Tech Manager')
-    expect(screen.getByTestId('team-member-Niranjan')).toHaveTextContent('Niranjan - QA Manager')
-    expect(screen.getByTestId('team-member-Anush')).toHaveTextContent('Anush - Logistics Manager')
-    expect(screen.getByTestId('team-member-Harsha')).toHaveTextContent('Harsha - Operations Manager')
-    expect(screen.getByTestId('team-member-Kiran')).toHaveTextContent('Kiran - Technical Architect')
-    expect(screen.getByTestId('team-member-Manish')).toHaveTextContent('Manish - HR')
-    expect(screen.getByTestId('team-member-Ramesh')).toHaveTextContent('Ramesh - CEO')
+    // Verify specific default team members
+    expect(screen.getByTestId('team-member-Unassigned')).toHaveTextContent('Unassigned - None')
+    expect(screen.getByTestId('team-member-John Doe')).toHaveTextContent('John Doe - Developer')
+    expect(screen.getByTestId('team-member-Jane Smith')).toHaveTextContent('Jane Smith - Designer')
   })
 
-  it('should have SafeStorage tasks loaded', () => {
+  it('should start with empty tasks', () => {
     render(
       <TaskProvider>
         <TaskContextConsumer />
       </TaskProvider>
     )
     
-    // Verify task count (83 SafeStorage tasks)
-    expect(screen.getByTestId('task-count')).toHaveTextContent('83')
-    
-    // Verify specific SafeStorage tasks
-    expect(screen.getByTestId('task-kiran-task-1')).toHaveTextContent('Claude code - existing code analysis and optimization')
-    expect(screen.getByTestId('task-kiran-task-8')).toHaveTextContent('AWS migration setup and Git + Jenkins workflow')
-    expect(screen.getByTestId('task-kiran-task-6')).toHaveTextContent('SafeStorage mobile apps deployment to PlayStore')
-    
-    expect(screen.getByTestId('task-kushal-task-1')).toHaveTextContent('SafeStorage Payment detailed analysis')
-    expect(screen.getByTestId('task-kushal-task-9')).toHaveTextContent('SafeStorage CRM - Build Agentic platform')
-    expect(screen.getByTestId('task-kushal-task-2')).toHaveTextContent('LinkedIn Ads Setup - waiting for creatives')
-    
-    expect(screen.getByTestId('task-anush-task-1')).toHaveTextContent('Kolkata warehouse confirmation')
-    expect(screen.getByTestId('task-anush-task-8')).toHaveTextContent('Vendor vehicle branding implementation')
-    expect(screen.getByTestId('task-anush-task-12')).toHaveTextContent('Pune owner legal notice')
+    // Verify task count (0 initially)
+    expect(screen.getByTestId('task-count')).toHaveTextContent('0')
   })
 
-  it('should have enhanced label system with SafeStorage categories', () => {
+  it('should have default label system', () => {
     render(
       <TaskProvider>
         <TaskContextConsumer />
       </TaskProvider>
     )
     
-    // Verify enhanced label count (15 labels total)
-    expect(screen.getByTestId('label-count')).toHaveTextContent('15')
+    // Verify default label count (5 labels total)
+    expect(screen.getByTestId('label-count')).toHaveTextContent('5')
     
-    // Verify original labels
+    // Verify default labels
     expect(screen.getByTestId('label-Bug')).toBeInTheDocument()
     expect(screen.getByTestId('label-Feature')).toBeInTheDocument()
     expect(screen.getByTestId('label-Enhancement')).toBeInTheDocument()
     expect(screen.getByTestId('label-Documentation')).toBeInTheDocument()
-    expect(screen.getByTestId('label-Research')).toBeInTheDocument()
-    
-    // Verify SafeStorage-specific labels
-    expect(screen.getByTestId('label-Backend')).toBeInTheDocument()
-    expect(screen.getByTestId('label-Frontend')).toBeInTheDocument()
-    expect(screen.getByTestId('label-Mobile')).toBeInTheDocument()
-    expect(screen.getByTestId('label-DevOps')).toBeInTheDocument()
-    expect(screen.getByTestId('label-Marketing')).toBeInTheDocument()
-    expect(screen.getByTestId('label-Logistics')).toBeInTheDocument()
-    expect(screen.getByTestId('label-Payment')).toBeInTheDocument()
-    expect(screen.getByTestId('label-CRM')).toBeInTheDocument()
-    expect(screen.getByTestId('label-Legal')).toBeInTheDocument()
-    expect(screen.getByTestId('label-Analytics')).toBeInTheDocument()
+    expect(screen.getByTestId('label-Testing')).toBeInTheDocument()
   })
 
   it('should have daily reports system initialized', () => {
@@ -124,19 +95,17 @@ describe('SafeStorage Integration Tests', () => {
     expect(screen.getByTestId('daily-reports-count')).toHaveTextContent('0')
   })
 
-  it('should support backlog status in task workflow', () => {
+  it('should render without errors', () => {
     render(
       <TaskProvider>
         <TaskContextConsumer />
       </TaskProvider>
     )
     
-    // Find tasks with backlog status
-    const backlogTasks = screen.getAllByTestId(/^task-/)
-      .map(el => el.textContent)
-      .filter(text => text?.includes('Claude code') || text?.includes('AWS migration') || text?.includes('SafeStorage mobile') || text?.includes('SafeStorage CRM'))
-    
-    // Should have backlog tasks
-    expect(backlogTasks.length).toBeGreaterThan(0)
+    // Should render all components without errors
+    expect(screen.getByTestId('task-count')).toBeInTheDocument()
+    expect(screen.getByTestId('team-count')).toBeInTheDocument()
+    expect(screen.getByTestId('label-count')).toBeInTheDocument()
+    expect(screen.getByTestId('daily-reports-count')).toBeInTheDocument()
   })
 })

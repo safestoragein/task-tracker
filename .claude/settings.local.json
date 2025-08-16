@@ -12,7 +12,20 @@
       "Bash(grep:*)",
       "Bash(curl:*)",
       "Bash(npm run build:*)",
-      "Bash(npm audit:*)"
+      "Bash(npm audit:*)",
+      "Bash(git add:*)",
+      "Bash(npx vercel:*)",
+      "Bash(npm run test:*)",
+      "Bash(git reset:*)",
+      "Bash(vercel:*)",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(gh auth:*)",
+      "Bash(brew install:*)",
+      "Bash(gh repo create:*)",
+      "Bash(touch:*)"
     ],
     "deny": []
   }
