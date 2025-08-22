@@ -23,11 +23,11 @@ import {
   Clock,
   CheckCircle2
 } from 'lucide-react'
-import { TeamMember, UserRole } from '@/types'
+import { TeamMember, UserRole, Group } from '@/types'
 
 export function TeamManagement() {
   const { state: authState } = useAuth()
-  const { state: taskState, dispatch } = useTask()
+  const { state: taskState, dispatch, initializeDefaultGroups } = useTask()
   const [isAddMemberOpen, setIsAddMemberOpen] = useState(false)
   const [editingMember, setEditingMember] = useState<TeamMember | null>(null)
   const [newMember, setNewMember] = useState({
@@ -122,15 +122,24 @@ export function TeamManagement() {
           <p className="text-muted-foreground">Manage SafeStorage team members and their roles</p>
         </div>
         
-        <Button 
-          onClick={() => {
-            console.log('Add Member button clicked!')
-            setIsAddMemberOpen(true)
-          }}
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Member
-        </Button>
+        <div className="flex space-x-2">
+          <Button 
+            variant="outline"
+            onClick={() => initializeDefaultGroups()}
+          >
+            <Users className="h-4 w-4 mr-2" />
+            Initialize Groups
+          </Button>
+          <Button 
+            onClick={() => {
+              console.log('Add Member button clicked!')
+              setIsAddMemberOpen(true)
+            }}
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Member
+          </Button>
+        </div>
       </div>
 
       {/* Add Member Modal */}
@@ -182,6 +191,7 @@ export function TeamManagement() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="member">Member</SelectItem>
+                <SelectItem value="scrum_master">Scrum Master</SelectItem>
                 <SelectItem value="admin">Admin</SelectItem>
               </SelectContent>
             </Select>
@@ -221,6 +231,12 @@ export function TeamManagement() {
                       <Badge variant="default" className="text-xs">
                         <Shield className="h-3 w-3 mr-1" />
                         Admin
+                      </Badge>
+                    )}
+                    {member.userRole === 'scrum_master' && (
+                      <Badge variant="outline" className="text-xs border-blue-200 text-blue-700">
+                        <UserCheck className="h-3 w-3 mr-1" />
+                        Scrum Master
                       </Badge>
                     )}
                     {isCurrentUser && (
@@ -289,6 +305,70 @@ export function TeamManagement() {
         })}
       </div>
 
+      {/* Groups Section */}
+      {taskState.groups.length > 0 && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h3 className="text-xl font-semibold">Team Groups</h3>
+            <span className="text-sm text-muted-foreground">{taskState.groups.length} groups</span>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {taskState.groups.map((group) => {
+              const groupMembers = taskState.teamMembers.filter(member => 
+                group.memberIds.includes(member.id)
+              )
+              const scrumMasters = taskState.teamMembers.filter(member => 
+                group.scrumMasterIds.includes(member.id)
+              )
+              
+              return (
+                <Card key={group.id} className="border-orange-200 bg-orange-50/30">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <CardTitle className="text-lg text-orange-800">{group.name}</CardTitle>
+                        <CardDescription className="text-orange-600">{group.description}</CardDescription>
+                      </div>
+                      <Badge variant="outline" className="text-xs border-orange-200 text-orange-700">
+                        {groupMembers.length} members
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-4">
+                    {scrumMasters.length > 0 && (
+                      <div>
+                        <div className="text-sm font-medium text-orange-800 mb-2">Scrum Masters</div>
+                        <div className="flex flex-wrap gap-1">
+                          {scrumMasters.map(sm => (
+                            <Badge key={sm.id} variant="default" className="text-xs bg-blue-100 text-blue-800 border-blue-200">
+                              <UserCheck className="h-3 w-3 mr-1" />
+                              {sm.name}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    
+                    <div>
+                      <div className="text-sm font-medium text-orange-800 mb-2">Team Members</div>
+                      <div className="flex flex-wrap gap-1">
+                        {groupMembers.filter(member => !group.scrumMasterIds.includes(member.id)).map(member => (
+                          <Badge key={member.id} variant="secondary" className="text-xs">
+                            {member.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
       {/* Edit Member Modal */}
       <SimpleModal
         isOpen={editingMember !== null}
@@ -336,6 +416,7 @@ export function TeamManagement() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="member">Member</SelectItem>
+                  <SelectItem value="scrum_master">Scrum Master</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>

@@ -1,7 +1,7 @@
 export type Priority = 'low' | 'medium' | 'high'
 export type TaskStatus = 'backlog' | 'todo' | 'in-progress' | 'review' | 'done'
 
-export type UserRole = 'admin' | 'member'
+export type UserRole = 'admin' | 'member' | 'scrum_master'
 
 export interface TeamMember {
   id: string
@@ -10,6 +10,7 @@ export interface TeamMember {
   role: string
   email: string
   userRole: UserRole
+  groupIds?: string[] // Groups this member belongs to
 }
 
 export interface Label {
@@ -92,6 +93,16 @@ export interface DailyReport {
   updatedAt: Date
 }
 
+export interface Group {
+  id: string
+  name: string
+  description: string
+  memberIds: string[]
+  scrumMasterIds: string[]
+  createdAt: Date
+  updatedAt: Date
+}
+
 export interface User {
   id: string
   name: string
@@ -99,6 +110,7 @@ export interface User {
   role: string
   userRole: UserRole
   avatar?: string
+  groupIds?: string[]
 }
 
 export interface AuthState {
@@ -109,6 +121,7 @@ export interface AuthState {
 export interface TaskState {
   tasks: Task[]
   teamMembers: TeamMember[]
+  groups: Group[]
   labels: Label[]
   dailyReports: DailyReport[]
   filters: FilterState

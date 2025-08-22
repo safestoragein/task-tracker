@@ -29,6 +29,7 @@ const initialState: TaskState = {
     { id: '6', name: 'Manish', role: 'HR', email: 'manish@safestorage.in', userRole: 'admin' },
     { id: '7', name: 'Ramesh', role: 'CEO', email: 'ramesh@safestorage.in', userRole: 'admin' },
   ],
+  groups: [],
   labels: [
     { id: '1', name: 'Bug', color: '#ef4444' },
     { id: '2', name: 'Feature', color: '#3b82f6' },

@@ -1,7 +1,7 @@
 'use client'
 
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react'
-import { Task, TaskStatus, TeamMember, Label, FilterState, DailyReport, TaskState } from '@/types'
+import { Task, TaskStatus, TeamMember, Label, FilterState, DailyReport, TaskState, Group } from '@/types'
 import { supabase } from '@/lib/supabase'
 import { LocalStorageManager } from '@/lib/localStorage'
 
@@ -14,6 +14,10 @@ export type TaskAction =
   | { type: 'MOVE_TASK'; payload: { taskId: string; newStatus: TaskStatus } }
   | { type: 'REORDER_TASKS'; payload: { tasks: Task[] } }
   | { type: 'SET_TEAM_MEMBERS'; payload: TeamMember[] }
+  | { type: 'SET_GROUPS'; payload: Group[] }
+  | { type: 'ADD_GROUP'; payload: Group }
+  | { type: 'UPDATE_GROUP'; payload: { id: string; updates: Partial<Group> } }
+  | { type: 'DELETE_GROUP'; payload: string }
   | { type: 'SET_LABELS'; payload: Label[] }
   | { type: 'SET_FILTERS'; payload: FilterState }
   | { type: 'UPDATE_FILTERS'; payload: Partial<FilterState> }
@@ -25,6 +29,7 @@ export type TaskAction =
 const initialState: TaskState = {
   tasks: [],
   teamMembers: [],
+  groups: [],
   labels: [],
   dailyReports: [],
   filters: {
@@ -130,6 +135,28 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
       LocalStorageManager.setTeamMembers(action.payload)
       return { ...state, teamMembers: action.payload }
 
+    case 'SET_GROUPS':
+      return { ...state, groups: action.payload }
+
+    case 'ADD_GROUP':
+      newState = { ...state, groups: [...state.groups, action.payload] }
+      return newState
+
+    case 'UPDATE_GROUP':
+      newState = {
+        ...state,
+        groups: state.groups.map(group =>
+          group.id === action.payload.id
+            ? { ...group, ...action.payload.updates, updatedAt: new Date() }
+            : group
+        )
+      }
+      return newState
+
+    case 'DELETE_GROUP':
+      newState = { ...state, groups: state.groups.filter(group => group.id !== action.payload) }
+      return newState
+
     case 'SET_LABELS':
       LocalStorageManager.setLabels(action.payload)
       return { ...state, labels: action.payload }
@@ -227,6 +254,10 @@ export const TaskContext = createContext<{
   deleteTask: (id: string) => Promise<void>
   moveTask: (taskId: string, newStatus: TaskStatus) => Promise<void>
   reorderTasks: (tasks: Task[]) => Promise<void>
+  addGroup: (group: Omit<Group, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
+  updateGroup: (id: string, updates: Partial<Group>) => Promise<void>
+  deleteGroup: (id: string) => Promise<void>
+  initializeDefaultGroups: () => Promise<void>
   addDailyReport: (report: Omit<DailyReport, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>
   updateDailyReport: (id: string, updates: Partial<DailyReport>) => Promise<void>
   deleteDailyReport: (id: string) => Promise<void>
@@ -755,6 +786,82 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  // Group management functions
+  const addGroup = async (groupData: Omit<Group, 'id' | 'createdAt' | 'updatedAt'>) => {
+    const newGroup: Group = {
+      ...groupData,
+      id: crypto.randomUUID(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+
+    // Add to local state immediately
+    dispatch({ type: 'ADD_GROUP', payload: newGroup })
+  }
+
+  const updateGroup = async (id: string, updates: Partial<Group>) => {
+    // Update local state immediately
+    dispatch({ type: 'UPDATE_GROUP', payload: { id, updates } })
+  }
+
+  const deleteGroup = async (id: string) => {
+    // Delete from local state immediately
+    dispatch({ type: 'DELETE_GROUP', payload: id })
+  }
+
+  const initializeDefaultGroups = async () => {
+    // Get existing team members
+    const teamMembers = state.teamMembers
+    
+    // Create group mappings based on your requirements
+    const techTeamMembers = teamMembers.filter(member => 
+      ['Kushal', 'Niranjan', 'Kiran'].includes(member.name)
+    )
+    
+    const level1Members = teamMembers.filter(member => 
+      !['Kushal', 'Niranjan', 'Kiran'].includes(member.name)
+    )
+    
+    // Scrum masters (Manish and Niranjan) will be added to all groups
+    const scrumMasters = teamMembers.filter(member => 
+      ['Manish', 'Niranjan'].includes(member.name)
+    )
+    
+    const techTeamGroup: Group = {
+      id: 'tech-team',
+      name: 'Tech Team',
+      description: 'Development team including Kushal, Niranjan, and Kiran',
+      memberIds: [...techTeamMembers.map(m => m.id), ...scrumMasters.map(m => m.id)],
+      scrumMasterIds: scrumMasters.map(m => m.id),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+    
+    const level1Group: Group = {
+      id: 'level-1',
+      name: 'Level 1',
+      description: 'Level 1 team with all remaining members',
+      memberIds: [...level1Members.map(m => m.id), ...scrumMasters.map(m => m.id)],
+      scrumMasterIds: scrumMasters.map(m => m.id),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+    
+    // Update team members with scrum master role
+    const updatedTeamMembers = teamMembers.map(member => ({
+      ...member,
+      userRole: scrumMasters.some(sm => sm.id === member.id) ? 'scrum_master' as const : member.userRole,
+      groupIds: [
+        ...(techTeamMembers.some(tm => tm.id === member.id) || scrumMasters.some(sm => sm.id === member.id) ? ['tech-team'] : []),
+        ...(level1Members.some(lm => lm.id === member.id) || scrumMasters.some(sm => sm.id === member.id) ? ['level-1'] : [])
+      ]
+    }))
+    
+    // Set the groups and updated team members
+    dispatch({ type: 'SET_GROUPS', payload: [techTeamGroup, level1Group] })
+    dispatch({ type: 'SET_TEAM_MEMBERS', payload: updatedTeamMembers })
+  }
+
   // Filter tasks based on current filters
   const filteredTasks = state.tasks.filter(task => {
     const { search, assignee, priority, labels, dueDate } = state.filters
@@ -804,6 +911,10 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       deleteTask,
       moveTask,
       reorderTasks,
+      addGroup,
+      updateGroup,
+      deleteGroup,
+      initializeDefaultGroups,
       addDailyReport,
       updateDailyReport,
       deleteDailyReport,
