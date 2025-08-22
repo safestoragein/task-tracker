@@ -161,7 +161,9 @@ export function DailyReport() {
           .map(member => {
             const userReport = getUserReport(member.id)
             const hasReported = hasUserReported(member.id)
-            const canEdit = canEditDailyReport(member.id)
+            // Check if current user can edit this member's report
+            // Use email matching as fallback if IDs don't match
+            const canEdit = canEditDailyReport(member.id) || authState.user?.email === member.email
             // All members can view all reports, but edit permissions are controlled separately
             const canView =
               authState.user?.userRole === 'admin' ||
@@ -234,7 +236,8 @@ export function DailyReport() {
                       {member.name === 'Anush' && (
                         <div className="text-xs bg-yellow-100 p-2 rounded">
                           Debug: canEdit={canEdit.toString()}, hasReported={hasReported.toString()},
-                          currentUser={authState.user?.name}, userRole={authState.user?.userRole}
+                          currentUser={authState.user?.name}, userRole={authState.user?.userRole},
+                          currentUserId={authState.user?.id}, memberId={member.id}
                         </div>
                       )}
                       {canEdit && !hasReported && (
