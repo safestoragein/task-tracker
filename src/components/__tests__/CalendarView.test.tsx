@@ -70,13 +70,29 @@ const mockState: TaskState = {
     priority: [],
     labels: [],
     dueDate: {},
-  }
+  },
 }
 
 const mockContextValue = {
   state: mockState,
   dispatch: mockDispatch,
-  filteredTasks: mockTasks
+  filteredTasks: mockTasks,
+  updateTask: jest.fn(),
+  deleteTask: jest.fn(),
+  addTask: jest.fn(),
+  moveTask: jest.fn(),
+  reorderTasks: jest.fn(),
+  addGroup: jest.fn(),
+  updateGroup: jest.fn(),
+  deleteGroup: jest.fn(),
+  initializeDefaultGroups: jest.fn(),
+  addDailyReport: jest.fn(),
+  updateDailyReport: jest.fn(),
+  deleteDailyReport: jest.fn(),
+  syncWithDatabase: jest.fn(),
+  isOnline: true,
+  isSyncing: false,
+  lastSyncTime: null,
 }
 
 // Mock date-fns to have consistent dates in tests
@@ -93,8 +109,14 @@ jest.mock('date-fns', () => ({
   format: jest.requireActual('date-fns').format,
   isSameMonth: jest.fn(() => true),
   isSameDay: jest.fn((date1: Date, date2: Date) => date1.getDate() === date2.getDate()),
-  addMonths: jest.fn((date: Date, amount: number) => new Date(date.getFullYear(), date.getMonth() + amount, date.getDate())),
-  subMonths: jest.fn((date: Date, amount: number) => new Date(date.getFullYear(), date.getMonth() - amount, date.getDate())),
+  addMonths: jest.fn(
+    (date: Date, amount: number) =>
+      new Date(date.getFullYear(), date.getMonth() + amount, date.getDate())
+  ),
+  subMonths: jest.fn(
+    (date: Date, amount: number) =>
+      new Date(date.getFullYear(), date.getMonth() - amount, date.getDate())
+  ),
 }))
 
 // Mock the TaskModal component
@@ -104,22 +126,16 @@ jest.mock('../TaskModal', () => {
       if (!isOpen) return null
       return (
         <div data-testid="task-modal">
-          <button onClick={() => onSubmit({ ...task, title: 'Updated Task' })}>
-            Save Task
-          </button>
+          <button onClick={() => onSubmit({ ...task, title: 'Updated Task' })}>Save Task</button>
           <button onClick={onClose}>Close</button>
         </div>
       )
-    }
+    },
   }
 })
 
 const renderWithContext = (component: React.ReactElement) => {
-  return render(
-    <TaskContext.Provider value={mockContextValue}>
-      {component}
-    </TaskContext.Provider>
-  )
+  return render(<TaskContext.Provider value={mockContextValue}>{component}</TaskContext.Provider>)
 }
 
 describe('CalendarView', () => {
@@ -136,13 +152,13 @@ describe('CalendarView', () => {
 
   it('should render calendar with current month', () => {
     renderWithContext(<CalendarView />)
-    
+
     expect(screen.getByText('January 2024')).toBeInTheDocument()
   })
 
   it('should show day headers', () => {
     renderWithContext(<CalendarView />)
-    
+
     expect(screen.getByText('Sun')).toBeInTheDocument()
     expect(screen.getByText('Mon')).toBeInTheDocument()
     expect(screen.getByText('Tue')).toBeInTheDocument()
@@ -154,46 +170,46 @@ describe('CalendarView', () => {
 
   it('should display tasks on their due dates', () => {
     renderWithContext(<CalendarView />)
-    
+
     expect(screen.getByText('Fix login bug')).toBeInTheDocument()
     expect(screen.getByText('Design homepage')).toBeInTheDocument()
   })
 
   it('should navigate to previous month', async () => {
     renderWithContext(<CalendarView />)
-    
+
     const prevButton = screen.getByRole('button', { name: 'Previous month' })
     fireEvent.click(prevButton)
-    
+
     // Date would change (mocked), so just verify button works
     expect(prevButton).toBeInTheDocument()
   })
 
   it('should navigate to next month', async () => {
     renderWithContext(<CalendarView />)
-    
+
     const nextButton = screen.getByRole('button', { name: 'Next month' })
     fireEvent.click(nextButton)
-    
+
     expect(nextButton).toBeInTheDocument()
   })
 
   it('should navigate to current month with Today button', async () => {
     renderWithContext(<CalendarView />)
-    
+
     const todayButton = screen.getByText('Today')
     fireEvent.click(todayButton)
-    
+
     expect(todayButton).toBeInTheDocument()
   })
 
   it('should select date when clicking on calendar day', async () => {
     renderWithContext(<CalendarView />)
-    
+
     // Find a day with the date 15 (which has a task)
     const day15 = screen.getByText('15')
     fireEvent.click(day15.closest('div')!)
-    
+
     // Should show selected date tasks in sidebar
     await waitFor(() => {
       expect(screen.getByText('Monday, January 15')).toBeInTheDocument()
@@ -202,11 +218,11 @@ describe('CalendarView', () => {
 
   it('should show selected date tasks in sidebar', async () => {
     renderWithContext(<CalendarView />)
-    
+
     // Click on date with task
     const day15 = screen.getByText('15')
     fireEvent.click(day15.closest('div')!)
-    
+
     await waitFor(() => {
       // Should show task details in sidebar (there are multiple instances of this text)
       expect(screen.getAllByText('Fix login bug')).toHaveLength(2)
@@ -216,10 +232,10 @@ describe('CalendarView', () => {
 
   it('should open task modal when clicking on task in calendar', async () => {
     renderWithContext(<CalendarView />)
-    
+
     const taskElement = screen.getByText('Fix login bug')
     fireEvent.click(taskElement)
-    
+
     await waitFor(() => {
       expect(screen.getByTestId('task-modal')).toBeInTheDocument()
     })
@@ -227,16 +243,16 @@ describe('CalendarView', () => {
 
   it('should open task modal when clicking on task in sidebar', async () => {
     renderWithContext(<CalendarView />)
-    
+
     // First select a date
     const day15 = screen.getByText('15')
     fireEvent.click(day15.closest('div')!)
-    
+
     await waitFor(() => {
       const sidebarTask = screen.getAllByText('Fix login bug')[1] // Second occurrence in sidebar
       fireEvent.click(sidebarTask)
     })
-    
+
     await waitFor(() => {
       expect(screen.getByTestId('task-modal')).toBeInTheDocument()
     })
@@ -244,10 +260,10 @@ describe('CalendarView', () => {
 
   it('should create new task when clicking New Task button', async () => {
     renderWithContext(<CalendarView />)
-    
+
     const newTaskButton = screen.getByText('New Task')
     fireEvent.click(newTaskButton)
-    
+
     await waitFor(() => {
       expect(screen.getByTestId('task-modal')).toBeInTheDocument()
     })
@@ -255,11 +271,11 @@ describe('CalendarView', () => {
 
   it('should show "Create task for this date" button when date has no tasks', async () => {
     renderWithContext(<CalendarView />)
-    
+
     // Click on a date without tasks (e.g., day 31)
     const day31 = screen.getByText('31')
     fireEvent.click(day31.closest('div')!)
-    
+
     await waitFor(() => {
       expect(screen.getByText('No tasks for this date')).toBeInTheDocument()
       expect(screen.getByText('Create task for this date')).toBeInTheDocument()
@@ -268,16 +284,16 @@ describe('CalendarView', () => {
 
   it('should pre-fill due date when creating task for specific date', async () => {
     renderWithContext(<CalendarView />)
-    
+
     // Click on a date without tasks
     const day31 = screen.getByText('31')
     fireEvent.click(day31.closest('div')!)
-    
+
     await waitFor(() => {
       const createButton = screen.getByText('Create task for this date')
       fireEvent.click(createButton)
     })
-    
+
     await waitFor(() => {
       expect(screen.getByTestId('task-modal')).toBeInTheDocument()
     })
@@ -285,7 +301,7 @@ describe('CalendarView', () => {
 
   it('should show monthly statistics in sidebar', () => {
     renderWithContext(<CalendarView />)
-    
+
     expect(screen.getByText('This Month')).toBeInTheDocument()
     expect(screen.getByText('In Progress')).toBeInTheDocument()
     expect(screen.getByText('Completed')).toBeInTheDocument()
@@ -294,7 +310,7 @@ describe('CalendarView', () => {
 
   it('should display correct task counts in statistics', () => {
     renderWithContext(<CalendarView />)
-    
+
     // Based on mockTasks: 1 in-progress, 0 done, 1 overdue
     const stats = screen.getAllByText(/\d+/)
     expect(stats.length).toBeGreaterThan(0) // Should show some numbers
@@ -302,37 +318,34 @@ describe('CalendarView', () => {
 
   it('should handle task updates from modal', async () => {
     renderWithContext(<CalendarView />)
-    
+
     const taskElement = screen.getByText('Fix login bug')
     fireEvent.click(taskElement)
-    
+
     await waitFor(() => {
       const saveButton = screen.getByText('Save Task')
       fireEvent.click(saveButton)
     })
-    
+
     await waitFor(() => {
-      expect(mockDispatch).toHaveBeenCalledWith({
-        type: 'UPDATE_TASK',
-        payload: { 
-          id: '1', 
-          updates: expect.objectContaining({ title: 'Updated Task' })
-        }
-      })
+      expect(mockContextValue.updateTask).toHaveBeenCalledWith(
+        '1',
+        expect.objectContaining({ title: 'Updated Task' })
+      )
     })
   })
 
   it('should close modal when clicking close button', async () => {
     renderWithContext(<CalendarView />)
-    
+
     const taskElement = screen.getByText('Fix login bug')
     fireEvent.click(taskElement)
-    
+
     await waitFor(() => {
       const closeButton = screen.getByText('Close')
       fireEvent.click(closeButton)
     })
-    
+
     await waitFor(() => {
       expect(screen.queryByTestId('task-modal')).not.toBeInTheDocument()
     })
@@ -340,7 +353,7 @@ describe('CalendarView', () => {
 
   it('should show task priority indicators', () => {
     renderWithContext(<CalendarView />)
-    
+
     // Tasks should show priority color dots
     const taskElements = screen.getAllByText(/Fix login bug|Design homepage/)
     expect(taskElements.length).toBeGreaterThan(0)
@@ -348,11 +361,11 @@ describe('CalendarView', () => {
 
   it('should show task labels', async () => {
     renderWithContext(<CalendarView />)
-    
+
     // Select a date to show tasks in sidebar
     const day15 = screen.getByText('15')
     fireEvent.click(day15.closest('div')!)
-    
+
     await waitFor(() => {
       // Labels should appear in sidebar task details
       expect(screen.getByText('Bug')).toBeInTheDocument()
@@ -361,7 +374,7 @@ describe('CalendarView', () => {
 
   it('should highlight overdue tasks', () => {
     renderWithContext(<CalendarView />)
-    
+
     // Overdue task should be visible (we don't test exact styling)
     expect(screen.getByText('Overdue task')).toBeInTheDocument()
   })
@@ -374,44 +387,44 @@ describe('CalendarView', () => {
       title: `Task ${i}`,
       dueDate: new Date('2024-01-15'),
     }))
-    
+
     const contextWithManyTasks = {
       ...mockContextValue,
-      filteredTasks: manyTasks
+      filteredTasks: manyTasks,
     }
-    
+
     render(
       <TaskContext.Provider value={contextWithManyTasks}>
         <CalendarView />
       </TaskContext.Provider>
     )
-    
+
     expect(screen.getByText('+2 more')).toBeInTheDocument()
   })
 
   it('should handle empty task list', () => {
     const emptyContext = {
       ...mockContextValue,
-      filteredTasks: []
+      filteredTasks: [],
     }
-    
+
     render(
       <TaskContext.Provider value={emptyContext}>
         <CalendarView />
       </TaskContext.Provider>
     )
-    
+
     expect(screen.getByText('January 2024')).toBeInTheDocument()
     expect(screen.getByText('Select a date')).toBeInTheDocument()
   })
 
   it('should show assignee information in sidebar task details', async () => {
     renderWithContext(<CalendarView />)
-    
+
     // Select date with task
     const day15 = screen.getByText('15')
     fireEvent.click(day15.closest('div')!)
-    
+
     await waitFor(() => {
       expect(screen.getByText('Alice')).toBeInTheDocument() // Shows first name only in sidebar
     })
@@ -419,11 +432,11 @@ describe('CalendarView', () => {
 
   it('should show estimated hours in sidebar', async () => {
     renderWithContext(<CalendarView />)
-    
+
     // Select date with task that has estimated hours
     const day20 = screen.getByText('20')
     fireEvent.click(day20.closest('div')!)
-    
+
     await waitFor(() => {
       expect(screen.getByText('8h')).toBeInTheDocument()
     })

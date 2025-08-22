@@ -3,11 +3,11 @@ import '@testing-library/jest-dom'
 // Mock IntersectionObserver
 global.IntersectionObserver = class IntersectionObserver {
   constructor() {}
-  
+
   disconnect() {}
-  
+
   observe() {}
-  
+
   unobserve() {}
 }
 
@@ -16,11 +16,11 @@ global.ResizeObserver = class ResizeObserver {
   constructor(cb) {
     this.cb = cb
   }
-  
+
   observe() {}
-  
+
   unobserve() {}
-  
+
   disconnect() {}
 }
 
@@ -54,10 +54,25 @@ if (!global.crypto) {
 }
 if (!global.crypto.randomUUID) {
   global.crypto.randomUUID = () => {
-    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-      const r = Math.random() * 16 | 0
-      const v = c === 'x' ? r : (r & 0x3 | 0x8)
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = (Math.random() * 16) | 0
+      const v = c === 'x' ? r : (r & 0x3) | 0x8
       return v.toString(16)
     })
   }
+}
+
+// Mock window.confirm
+global.confirm = jest.fn(() => true)
+
+// Mock window.alert
+global.alert = jest.fn()
+
+// Suppress console warnings for tests
+const originalWarn = console.warn
+console.warn = (...args) => {
+  if (args[0]?.includes?.('Supabase not configured')) {
+    return
+  }
+  originalWarn(...args)
 }
