@@ -330,7 +330,7 @@ describe('KanbanBoard', () => {
           active: { id: 'task-1' },
           over: { id: 'in-progress' },
         })
-      }, [])
+      }, [onDragEnd])
       return <div>{children}</div>
     })
     
@@ -350,7 +350,7 @@ describe('KanbanBoard', () => {
           active: { id: 'task-1' },
           over: { id: 'task-4' },
         })
-      }, [])
+      }, [onDragEnd])
       return <div>{children}</div>
     })
     

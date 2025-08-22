@@ -25,7 +25,8 @@
       "Bash(gh auth:*)",
       "Bash(brew install:*)",
       "Bash(gh repo create:*)",
-      "Bash(touch:*)"
+      "Bash(touch:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }
