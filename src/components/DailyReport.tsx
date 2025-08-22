@@ -70,7 +70,13 @@ export function DailyReport() {
 
   const handleSubmit = (authorId: string) => {
     if (!formData.yesterdayWork.trim() && !formData.todayPlan.trim()) return
-    if (!canEditDailyReport(authorId)) return
+
+    // Allow submission if user is editing their own report (by ID or email match)
+    const member = state.teamMembers.find(m => m.id === authorId)
+    const canSubmit =
+      canEditDailyReport(authorId) || (member && authState.user?.email === member.email)
+
+    if (!canSubmit) return
 
     const currentDate = new Date()
     const existingReport = getUserReport(authorId)
