@@ -154,14 +154,6 @@ export function DailyReport() {
 
       {/* Team Reports */}
       <div className="grid gap-4">
-        {state.teamMembers.length === 0 && (
-          <div className="text-center p-8 text-red-600">
-            <h3 className="text-lg font-medium">⚠️ DEBUG: No Team Members Found</h3>
-            <p className="text-sm">
-              Team members array is empty. Check localStorage initialization.
-            </p>
-          </div>
-        )}
         {state.teamMembers
           .filter(member => !selectedUserId || member.id === selectedUserId)
           .map(member => {
@@ -237,14 +229,6 @@ export function DailyReport() {
                           <Calendar className="h-3 w-3 mr-1" />
                           Pending
                         </Badge>
-                      )}
-                      {/* Debug info for Anush */}
-                      {member.name === 'Anush' && (
-                        <div className="text-xs bg-yellow-100 p-2 rounded">
-                          Debug: canEdit={canEdit.toString()}, hasReported={hasReported.toString()},
-                          currentUser={authState.user?.name}, userRole={authState.user?.userRole},
-                          currentUserId={authState.user?.id}, memberId={member.id}
-                        </div>
                       )}
                       {canEdit && !hasReported && (
                         <Button
