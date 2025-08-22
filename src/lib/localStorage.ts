@@ -26,7 +26,7 @@ export class LocalStorageManager {
   // Generic storage methods
   private static getItem<T>(key: string, defaultValue: T): T {
     if (!this.isAvailable()) return defaultValue
-    
+
     try {
       const item = localStorage.getItem(key)
       return item ? JSON.parse(item) : defaultValue
@@ -38,7 +38,7 @@ export class LocalStorageManager {
 
   private static setItem<T>(key: string, value: T): void {
     if (!this.isAvailable()) return
-    
+
     try {
       localStorage.setItem(key, JSON.stringify(value))
     } catch (error) {
@@ -117,7 +117,7 @@ export class LocalStorageManager {
   // Clear all data
   static clearAll(): void {
     if (!this.isAvailable()) return
-    
+
     Object.values(STORAGE_KEYS).forEach(key => {
       try {
         localStorage.removeItem(key)
@@ -134,27 +134,54 @@ export class LocalStorageManager {
       const defaultTeamMembers: TeamMember[] = [
         {
           id: '1',
-          name: 'Unassigned',
-          role: 'None',
-          email: 'unassigned@safestorage.com',
-          userRole: 'member',
-          avatar: undefined,
+          name: 'Kushal',
+          role: 'Tech Manager',
+          email: 'kushal@safestorage.in',
+          userRole: 'admin',
         },
         {
           id: '2',
-          name: 'John Doe',
-          role: 'Developer',
-          email: 'john@safestorage.com',
+          name: 'Niranjan',
+          role: 'QA Manager',
+          email: 'niranjan@safestorage.in',
           userRole: 'admin',
-          avatar: undefined,
         },
         {
           id: '3',
-          name: 'Jane Smith',
-          role: 'Designer',
-          email: 'jane@safestorage.com',
+          name: 'Anush',
+          role: 'Logistics Manager',
+          email: 'anush@safestorage.in',
           userRole: 'member',
-          avatar: undefined,
+        },
+        {
+          id: '4',
+          name: 'Harsha',
+          role: 'Operations Manager',
+          email: 'harsha@safestorage.in',
+          userRole: 'member',
+        },
+        {
+          id: '5',
+          name: 'Kiran',
+          role: 'Technical Architect',
+          email: 'kiran@safestorage.in',
+          userRole: 'member',
+        },
+        { id: '6', name: 'Manish', role: 'HR', email: 'manish@safestorage.in', userRole: 'admin' },
+        { id: '7', name: 'Ramesh', role: 'CEO', email: 'ramesh@safestorage.in', userRole: 'admin' },
+        {
+          id: '8',
+          name: 'Arun',
+          role: 'Team Member',
+          email: 'arun@safestorage.in',
+          userRole: 'member',
+        },
+        {
+          id: '9',
+          name: 'Shantraj',
+          role: 'Team Member',
+          email: 'shantraj@safestorage.in',
+          userRole: 'member',
         },
       ]
       this.setTeamMembers(defaultTeamMembers)

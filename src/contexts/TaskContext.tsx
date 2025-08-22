@@ -1,7 +1,16 @@
 'use client'
 
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react'
-import { Task, TaskStatus, TeamMember, Label, FilterState, DailyReport, TaskState, Group } from '@/types'
+import {
+  Task,
+  TaskStatus,
+  TeamMember,
+  Label,
+  FilterState,
+  DailyReport,
+  TaskState,
+  Group,
+} from '@/types'
 import { supabase } from '@/lib/supabase'
 import { LocalStorageManager } from '@/lib/localStorage'
 
@@ -28,9 +37,77 @@ export type TaskAction =
 
 const initialState: TaskState = {
   tasks: [],
-  teamMembers: [],
+  teamMembers: [
+    {
+      id: '1',
+      name: 'Kushal',
+      role: 'Tech Manager',
+      email: 'kushal@safestorage.in',
+      userRole: 'admin',
+    },
+    {
+      id: '2',
+      name: 'Niranjan',
+      role: 'QA Manager',
+      email: 'niranjan@safestorage.in',
+      userRole: 'admin',
+    },
+    {
+      id: '3',
+      name: 'Anush',
+      role: 'Logistics Manager',
+      email: 'anush@safestorage.in',
+      userRole: 'member',
+    },
+    {
+      id: '4',
+      name: 'Harsha',
+      role: 'Operations Manager',
+      email: 'harsha@safestorage.in',
+      userRole: 'member',
+    },
+    {
+      id: '5',
+      name: 'Kiran',
+      role: 'Technical Architect',
+      email: 'kiran@safestorage.in',
+      userRole: 'member',
+    },
+    { id: '6', name: 'Manish', role: 'HR', email: 'manish@safestorage.in', userRole: 'admin' },
+    { id: '7', name: 'Ramesh', role: 'CEO', email: 'ramesh@safestorage.in', userRole: 'admin' },
+    {
+      id: '8',
+      name: 'Arun',
+      role: 'Team Member',
+      email: 'arun@safestorage.in',
+      userRole: 'member',
+    },
+    {
+      id: '9',
+      name: 'Shantraj',
+      role: 'Team Member',
+      email: 'shantraj@safestorage.in',
+      userRole: 'member',
+    },
+  ],
   groups: [],
-  labels: [],
+  labels: [
+    { id: '1', name: 'Bug', color: '#ef4444' },
+    { id: '2', name: 'Feature', color: '#3b82f6' },
+    { id: '3', name: 'Enhancement', color: '#8b5cf6' },
+    { id: '4', name: 'Documentation', color: '#10b981' },
+    { id: '5', name: 'Research', color: '#f59e0b' },
+    { id: '6', name: 'Backend', color: '#6366f1' },
+    { id: '7', name: 'Frontend', color: '#06b6d4' },
+    { id: '8', name: 'Mobile', color: '#84cc16' },
+    { id: '9', name: 'DevOps', color: '#f97316' },
+    { id: '10', name: 'Marketing', color: '#ec4899' },
+    { id: '11', name: 'Logistics', color: '#8b5cf6' },
+    { id: '12', name: 'Payment', color: '#eab308' },
+    { id: '13', name: 'CRM', color: '#22c55e' },
+    { id: '14', name: 'Legal', color: '#64748b' },
+    { id: '15', name: 'Analytics', color: '#a855f7' },
+  ],
   dailyReports: [],
   filters: {
     search: '',
@@ -38,7 +115,7 @@ const initialState: TaskState = {
     priority: [],
     labels: [],
     dueDate: {},
-  }
+  },
 }
 
 function taskReducer(state: TaskState, action: TaskAction): TaskState {
@@ -55,16 +132,16 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
       if (action.payload.length > 0) {
         // Get local tasks that might have newer updates
         const localTasks = LocalStorageManager.getTasks()
-        
+
         // Create a map of database tasks by ID
         const dbTasksMap = new Map(action.payload.map(task => [task.id, task]))
-        
+
         // Create a map of local tasks by ID
         const localTasksMap = new Map(localTasks.map(task => [task.id, task]))
-        
+
         // Merge tasks: use local version if it's newer, otherwise use database version
         const mergedTasks: Task[] = []
-        
+
         // Add all database tasks, but use local version if it's newer
         action.payload.forEach(dbTask => {
           const localTask = localTasksMap.get(dbTask.id)
@@ -74,14 +151,14 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
             mergedTasks.push(dbTask)
           }
         })
-        
+
         // Add any local-only tasks that aren't in the database yet
         localTasks.forEach(localTask => {
           if (!dbTasksMap.has(localTask.id)) {
             mergedTasks.push(localTask)
           }
         })
-        
+
         newState = { ...state, tasks: mergedTasks }
         LocalStorageManager.setTasks(mergedTasks)
         return newState
@@ -101,7 +178,7 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
           task.id === action.payload.id
             ? { ...task, ...action.payload.updates, updatedAt: new Date() }
             : task
-        )
+        ),
       }
       LocalStorageManager.setTasks(newState.tasks)
       return newState
@@ -109,7 +186,7 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
     case 'DELETE_TASK':
       newState = {
         ...state,
-        tasks: state.tasks.filter(task => task.id !== action.payload)
+        tasks: state.tasks.filter(task => task.id !== action.payload),
       }
       LocalStorageManager.setTasks(newState.tasks)
       return newState
@@ -121,7 +198,7 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
           task.id === action.payload.taskId
             ? { ...task, status: action.payload.newStatus, updatedAt: new Date() }
             : task
-        )
+        ),
       }
       LocalStorageManager.setTasks(newState.tasks)
       return newState
@@ -149,7 +226,7 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
           group.id === action.payload.id
             ? { ...group, ...action.payload.updates, updatedAt: new Date() }
             : group
-        )
+        ),
       }
       return newState
 
@@ -167,7 +244,7 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
     case 'UPDATE_FILTERS':
       return {
         ...state,
-        filters: { ...state.filters, ...action.payload }
+        filters: { ...state.filters, ...action.payload },
       }
 
     case 'ADD_DAILY_REPORT':
@@ -182,7 +259,7 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
           report.id === action.payload.id
             ? { ...report, ...action.payload.updates, updatedAt: new Date() }
             : report
-        )
+        ),
       }
       LocalStorageManager.setDailyReports(newState.dailyReports)
       return newState
@@ -190,7 +267,7 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
     case 'DELETE_DAILY_REPORT':
       newState = {
         ...state,
-        dailyReports: state.dailyReports.filter(report => report.id !== action.payload)
+        dailyReports: state.dailyReports.filter(report => report.id !== action.payload),
       }
       LocalStorageManager.setDailyReports(newState.dailyReports)
       return newState
@@ -235,7 +312,7 @@ function convertTaskToSupabase(task: Task) {
     assignee_id: task.assigneeId,
     due_date: task.dueDate?.toISOString(),
     estimated_hours: task.estimatedHours,
-    labels: task.labels?.map(l => typeof l === 'string' ? l : l.name) || [],
+    labels: task.labels?.map(l => (typeof l === 'string' ? l : l.name)) || [],
     subtasks: task.subtasks || [],
     comments: task.comments || [],
     attachments: task.attachments || [],
@@ -349,7 +426,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       setIsSyncing(true)
 
       // Check if Supabase is configured
-      if (!supabase || !process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      if (
+        !supabase ||
+        !process.env.NEXT_PUBLIC_SUPABASE_URL ||
+        !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      ) {
         console.warn('Supabase not configured, using local storage only')
         setIsOnline(false)
         return
@@ -374,7 +455,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
             email: member.email,
             userRole: member.user_role,
             avatar: member.avatar,
-          }))
+          })),
         })
       }
 
@@ -393,7 +474,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
             id: label.id,
             name: label.name,
             color: label.color,
-          }))
+          })),
         })
       }
 
@@ -410,7 +491,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         // Use SET_TASKS_FROM_DB which only overwrites if we have data
         dispatch({
           type: 'SET_TASKS_FROM_DB',
-          payload: tasks.map(convertSupabaseTask)
+          payload: tasks.map(convertSupabaseTask),
         })
       }
 
@@ -437,7 +518,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
             todayPlan: report.today_plan || '',
             createdAt: new Date(report.created_at),
             updatedAt: new Date(report.updated_at),
-          }))
+          })),
         })
       }
 
@@ -471,11 +552,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
             .from('tasks')
             .select('*')
             .order('created_at', { ascending: false })
-          
+
           if (tasks) {
             dispatch({
               type: 'SET_TASKS_FROM_DB',
-              payload: tasks.map(convertSupabaseTask)
+              payload: tasks.map(convertSupabaseTask),
             })
           }
         })
@@ -486,31 +567,35 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       // Subscribe to daily report changes
       const reportSub = supabase
         .channel('daily_reports')
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'daily_reports' }, async () => {
-          const { data: reports } = await supabase
-            .from('daily_reports')
-            .select('*')
-            .order('date', { ascending: false })
-          
-          if (reports) {
-            dispatch({
-              type: 'SET_DAILY_REPORTS',
-              payload: reports.map((report: any) => ({
-                id: report.id,
-                authorId: report.author_id,
-                date: report.date,
-                tasksCompleted: report.tasks_completed || [],
-                tasksInProgress: report.tasks_in_progress || [],
-                blockers: report.blockers || [],
-                notes: report.notes || '',
-                yesterdayWork: report.yesterday_work || '',
-                todayPlan: report.today_plan || '',
-                createdAt: new Date(report.created_at),
-                updatedAt: new Date(report.updated_at),
-              }))
-            })
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'daily_reports' },
+          async () => {
+            const { data: reports } = await supabase
+              .from('daily_reports')
+              .select('*')
+              .order('date', { ascending: false })
+
+            if (reports) {
+              dispatch({
+                type: 'SET_DAILY_REPORTS',
+                payload: reports.map((report: any) => ({
+                  id: report.id,
+                  authorId: report.author_id,
+                  date: report.date,
+                  tasksCompleted: report.tasks_completed || [],
+                  tasksInProgress: report.tasks_in_progress || [],
+                  blockers: report.blockers || [],
+                  notes: report.notes || '',
+                  yesterdayWork: report.yesterday_work || '',
+                  todayPlan: report.today_plan || '',
+                  createdAt: new Date(report.created_at),
+                  updatedAt: new Date(report.updated_at),
+                })),
+              })
+            }
           }
-        })
+        )
         .subscribe()
 
       subscriptions.push(reportSub)
@@ -537,9 +622,8 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const addTask = async (taskData: Omit<Task, 'id' | 'createdAt' | 'updatedAt'>) => {
     // Calculate the next order value for this status
     const tasksInSameStatus = state.tasks.filter(t => t.status === taskData.status)
-    const maxOrder = tasksInSameStatus.reduce((max, task) => 
-      Math.max(max, task.order ?? 0), -1)
-    
+    const maxOrder = tasksInSameStatus.reduce((max, task) => Math.max(max, task.order ?? 0), -1)
+
     const newTask: Task = {
       ...taskData,
       id: crypto.randomUUID(),
@@ -554,9 +638,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     // Try to add to database if online
     if (isOnline && supabase) {
       try {
-        const { error } = await supabase
-          .from('tasks')
-          .insert([convertTaskToSupabase(newTask)])
+        const { error } = await supabase.from('tasks').insert([convertTaskToSupabase(newTask)])
 
         if (error) {
           console.error('Error adding task to database:', error)
@@ -582,7 +664,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
             assignee_id: updates.assigneeId,
             due_date: updates.dueDate?.toISOString(),
             estimated_hours: updates.estimatedHours,
-            labels: updates.labels?.map(l => typeof l === 'string' ? l : l.name),
+            labels: updates.labels?.map(l => (typeof l === 'string' ? l : l.name)),
           })
           .eq('id', id)
 
@@ -602,10 +684,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     // Try to delete from database if online
     if (isOnline && supabase) {
       try {
-        const { error } = await supabase
-          .from('tasks')
-          .delete()
-          .eq('id', id)
+        const { error } = await supabase.from('tasks').delete().eq('id', id)
 
         if (error) {
           console.error('Error deleting task from database:', error)
@@ -620,18 +699,26 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     console.log('🐛 MOVE DEBUG: moveTask called')
     console.log('🐛 MOVE DEBUG: taskId =', taskId)
     console.log('🐛 MOVE DEBUG: newStatus =', newStatus)
-    
+
     // Calculate the next order value for the target status
     const tasksInTargetStatus = state.tasks.filter(t => t.status === newStatus)
     console.log('🐛 MOVE DEBUG: tasksInTargetStatus count =', tasksInTargetStatus.length)
-    
-    const maxOrder = tasksInTargetStatus.reduce((max, task) => 
-      Math.max(max, task.order ?? 0), -1)
+
+    const maxOrder = tasksInTargetStatus.reduce((max, task) => Math.max(max, task.order ?? 0), -1)
     console.log('🐛 MOVE DEBUG: maxOrder =', maxOrder)
 
     // Find the task being moved
     const taskBeingMoved = state.tasks.find(t => t.id === taskId)
-    console.log('🐛 MOVE DEBUG: taskBeingMoved =', taskBeingMoved ? { id: taskBeingMoved.id, title: taskBeingMoved.title, currentStatus: taskBeingMoved.status } : null)
+    console.log(
+      '🐛 MOVE DEBUG: taskBeingMoved =',
+      taskBeingMoved
+        ? {
+            id: taskBeingMoved.id,
+            title: taskBeingMoved.title,
+            currentStatus: taskBeingMoved.status,
+          }
+        : null
+    )
 
     // Move in local state immediately with new order
     const updatedTasks = state.tasks.map(task =>
@@ -639,13 +726,23 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         ? { ...task, status: newStatus, order: maxOrder + 1, updatedAt: new Date() }
         : task
     )
-    
+
     console.log('🐛 MOVE DEBUG: Dispatching REORDER_TASKS action')
     dispatch({ type: 'REORDER_TASKS', payload: { tasks: updatedTasks } })
 
     // Verify the task was updated
     const updatedTask = updatedTasks.find(t => t.id === taskId)
-    console.log('🐛 MOVE DEBUG: updatedTask =', updatedTask ? { id: updatedTask.id, title: updatedTask.title, newStatus: updatedTask.status, order: updatedTask.order } : null)
+    console.log(
+      '🐛 MOVE DEBUG: updatedTask =',
+      updatedTask
+        ? {
+            id: updatedTask.id,
+            title: updatedTask.title,
+            newStatus: updatedTask.status,
+            order: updatedTask.order,
+          }
+        : null
+    )
 
     // Try to update in database if online
     if (isOnline && supabase) {
@@ -698,7 +795,9 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const addDailyReport = async (reportData: Omit<DailyReport, 'id' | 'createdAt' | 'updatedAt'>) => {
+  const addDailyReport = async (
+    reportData: Omit<DailyReport, 'id' | 'createdAt' | 'updatedAt'>
+  ) => {
     const newReport: DailyReport = {
       ...reportData,
       id: crypto.randomUUID(),
@@ -712,9 +811,8 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     // Try to add to database if online
     if (isOnline) {
       try {
-        const { error } = await supabase
-          .from('daily_reports')
-          .insert([{
+        const { error } = await supabase.from('daily_reports').insert([
+          {
             id: newReport.id,
             author_id: newReport.authorId,
             date: newReport.date,
@@ -724,7 +822,8 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
             notes: newReport.notes || '',
             yesterday_work: newReport.yesterdayWork || '',
             today_plan: newReport.todayPlan || '',
-          }])
+          },
+        ])
 
         if (error) {
           console.error('Error adding daily report to database:', error)
@@ -772,10 +871,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     // Try to delete from database if online
     if (isOnline && supabase) {
       try {
-        const { error } = await supabase
-          .from('daily_reports')
-          .delete()
-          .eq('id', id)
+        const { error } = await supabase.from('daily_reports').delete().eq('id', id)
 
         if (error) {
           console.error('Error deleting daily report from database:', error)
@@ -812,21 +908,19 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   const initializeDefaultGroups = async () => {
     // Get existing team members
     const teamMembers = state.teamMembers
-    
+
     // Create group mappings based on your requirements
-    const techTeamMembers = teamMembers.filter(member => 
+    const techTeamMembers = teamMembers.filter(member =>
       ['Kushal', 'Niranjan', 'Kiran'].includes(member.name)
     )
-    
-    const level1Members = teamMembers.filter(member => 
-      !['Kushal', 'Niranjan', 'Kiran'].includes(member.name)
+
+    const level1Members = teamMembers.filter(
+      member => !['Kushal', 'Niranjan', 'Kiran'].includes(member.name)
     )
-    
+
     // Scrum masters (Manish and Niranjan) will be added to all groups
-    const scrumMasters = teamMembers.filter(member => 
-      ['Manish', 'Niranjan'].includes(member.name)
-    )
-    
+    const scrumMasters = teamMembers.filter(member => ['Manish', 'Niranjan'].includes(member.name))
+
     const techTeamGroup: Group = {
       id: 'tech-team',
       name: 'Tech Team',
@@ -836,7 +930,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       createdAt: new Date(),
       updatedAt: new Date(),
     }
-    
+
     const level1Group: Group = {
       id: 'level-1',
       name: 'Level 1',
@@ -846,17 +940,25 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       createdAt: new Date(),
       updatedAt: new Date(),
     }
-    
+
     // Update team members with scrum master role
     const updatedTeamMembers = teamMembers.map(member => ({
       ...member,
-      userRole: scrumMasters.some(sm => sm.id === member.id) ? 'scrum_master' as const : member.userRole,
+      userRole: scrumMasters.some(sm => sm.id === member.id)
+        ? ('scrum_master' as const)
+        : member.userRole,
       groupIds: [
-        ...(techTeamMembers.some(tm => tm.id === member.id) || scrumMasters.some(sm => sm.id === member.id) ? ['tech-team'] : []),
-        ...(level1Members.some(lm => lm.id === member.id) || scrumMasters.some(sm => sm.id === member.id) ? ['level-1'] : [])
-      ]
+        ...(techTeamMembers.some(tm => tm.id === member.id) ||
+        scrumMasters.some(sm => sm.id === member.id)
+          ? ['tech-team']
+          : []),
+        ...(level1Members.some(lm => lm.id === member.id) ||
+        scrumMasters.some(sm => sm.id === member.id)
+          ? ['level-1']
+          : []),
+      ],
     }))
-    
+
     // Set the groups and updated team members
     dispatch({ type: 'SET_GROUPS', payload: [techTeamGroup, level1Group] })
     dispatch({ type: 'SET_TEAM_MEMBERS', payload: updatedTeamMembers })
@@ -879,9 +981,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (labels.length > 0) {
-      const taskLabelIds = task.labels.map(label => 
-        typeof label === 'string' ? label : label.id
-      )
+      const taskLabelIds = task.labels.map(label => (typeof label === 'string' ? label : label.id))
       if (!labels.some(labelId => taskLabelIds.includes(labelId))) {
         return false
       }
@@ -899,27 +999,29 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   })
 
   return (
-    <TaskContext.Provider value={{
-      state,
-      dispatch,
-      filteredTasks,
-      isOnline,
-      isSyncing,
-      lastSyncTime,
-      addTask,
-      updateTask,
-      deleteTask,
-      moveTask,
-      reorderTasks,
-      addGroup,
-      updateGroup,
-      deleteGroup,
-      initializeDefaultGroups,
-      addDailyReport,
-      updateDailyReport,
-      deleteDailyReport,
-      syncWithDatabase,
-    }}>
+    <TaskContext.Provider
+      value={{
+        state,
+        dispatch,
+        filteredTasks,
+        isOnline,
+        isSyncing,
+        lastSyncTime,
+        addTask,
+        updateTask,
+        deleteTask,
+        moveTask,
+        reorderTasks,
+        addGroup,
+        updateGroup,
+        deleteGroup,
+        initializeDefaultGroups,
+        addDailyReport,
+        updateDailyReport,
+        deleteDailyReport,
+        syncWithDatabase,
+      }}
+    >
       {children}
     </TaskContext.Provider>
   )
