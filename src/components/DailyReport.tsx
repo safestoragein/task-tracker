@@ -77,15 +77,13 @@ export function DailyReport() {
 
     if (existingReport) {
       // Update existing report
-      const updatedReport: DailyReportType = {
-        ...existingReport,
+      const updates = {
         yesterdayWork: formData.yesterdayWork.trim(),
         todayPlan: formData.todayPlan.trim(),
         blockers: formData.blockers.trim() || undefined,
-        updatedAt: currentDate,
       }
 
-      dispatch({ type: 'UPDATE_DAILY_REPORT', payload: updatedReport })
+      dispatch({ type: 'UPDATE_DAILY_REPORT', payload: { id: existingReport.id, updates } })
     } else {
       // Create new report
       const reportId = `report-${authorId}-${selectedDate}-${reportCounter}`
