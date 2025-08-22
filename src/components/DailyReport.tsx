@@ -13,6 +13,27 @@ import { UserSelector } from './UserSelector'
 import { Plus, Calendar, User, AlertTriangle, Lock, Shield, Eye } from 'lucide-react'
 import { cn, formatDate } from '@/lib/utils'
 
+// Helper function to format text into bullet points for better readability
+const formatToBulletPoints = (text: string): JSX.Element[] => {
+  if (!text.trim()) return []
+  
+  // Split by newlines and filter out empty lines
+  const lines = text.split('\n').filter(line => line.trim())
+  
+  return lines.map((line, index) => {
+    const trimmedLine = line.trim()
+    // Check if line already starts with bullet point, dash, or number
+    const hasMarker = /^[\-\*\•\d+\.]\s/.test(trimmedLine)
+    
+    return (
+      <div key={index} className="flex items-start gap-2 mb-1">
+        <span className="text-blue-500 mt-0.5 text-xs">•</span>
+        <span className={hasMarker ? "ml-0" : ""}>{hasMarker ? trimmedLine : trimmedLine}</span>
+      </div>
+    )
+  })
+}
+
 export function DailyReport() {
   const { state, dispatch } = useTask()
   const { state: authState, canEditDailyReport } = useAuth()
@@ -84,10 +105,10 @@ export function DailyReport() {
         <div>
           <h2 className="text-2xl font-semibold">Daily Standup</h2>
           <p className="text-muted-foreground">Team progress and planning</p>
-          {authState.user?.userRole === 'member' && (
+          {(authState.user?.userRole === 'member' || authState.user?.userRole === 'scrum_master') && (
             <p className="text-sm text-blue-600 mt-1">
               <Eye className="h-4 w-4 inline mr-1" />
-              You can only edit your own reports
+              You can view all reports but only edit your own
             </p>
           )}
         </div>
@@ -116,7 +137,8 @@ export function DailyReport() {
           const userReport = getUserReport(member.id)
           const hasReported = hasUserReported(member.id)
           const canEdit = canEditDailyReport(member.id)
-          const canView = authState.user?.userRole === 'admin' || member.id === authState.user?.id
+          // All members can view all reports, but edit permissions are controlled separately
+          const canView = authState.user?.userRole === 'admin' || authState.user?.userRole === 'member' || authState.user?.userRole === 'scrum_master'
 
           if (!canView) return null
 
@@ -141,6 +163,12 @@ export function DailyReport() {
                           <Badge variant="secondary" className="text-xs">
                             <Shield className="h-3 w-3 mr-1" />
                             Admin
+                          </Badge>
+                        )}
+                        {member.userRole === 'scrum_master' && (
+                          <Badge variant="outline" className="text-xs border-blue-200 text-blue-700">
+                            <User className="h-3 w-3 mr-1" />
+                            Scrum Master
                           </Badge>
                         )}
                         {!canEdit && (
@@ -187,18 +215,18 @@ export function DailyReport() {
                   {userReport.yesterdayWork && (
                     <div>
                       <h4 className="font-medium text-sm text-green-700 mb-2">Yesterday&apos;s Work</h4>
-                      <p className="text-sm bg-green-50 p-3 rounded-md">
-                        {userReport.yesterdayWork}
-                      </p>
+                      <div className="text-sm bg-green-50 p-3 rounded-md">
+                        {formatToBulletPoints(userReport.yesterdayWork)}
+                      </div>
                     </div>
                   )}
 
                   {userReport.todayPlan && (
                     <div>
                       <h4 className="font-medium text-sm text-blue-700 mb-2">Today&apos;s Plan</h4>
-                      <p className="text-sm bg-blue-50 p-3 rounded-md">
-                        {userReport.todayPlan}
-                      </p>
+                      <div className="text-sm bg-blue-50 p-3 rounded-md">
+                        {formatToBulletPoints(userReport.todayPlan)}
+                      </div>
                     </div>
                   )}
 
@@ -208,9 +236,9 @@ export function DailyReport() {
                         <AlertTriangle className="h-3 w-3" />
                         Blockers
                       </h4>
-                      <p className="text-sm bg-red-50 p-3 rounded-md">
-                        {userReport.blockers}
-                      </p>
+                      <div className="text-sm bg-red-50 p-3 rounded-md">
+                        {formatToBulletPoints(userReport.blockers)}
+                      </div>
                     </div>
                   )}
 
@@ -235,8 +263,11 @@ export function DailyReport() {
                     <Textarea
                       value={formData.yesterdayWork}
                       onChange={(e) => setFormData(prev => ({ ...prev, yesterdayWork: e.target.value }))}
-                      placeholder="Describe your accomplishments from yesterday..."
-                      className="min-h-[80px]"
+                      placeholder="List your accomplishments from yesterday (each line will become a bullet point):
+• Completed feature X
+• Fixed bug Y
+• Reviewed PR Z"
+                      className="min-h-[100px]"
                     />
                   </div>
 
@@ -247,8 +278,11 @@ export function DailyReport() {
                     <Textarea
                       value={formData.todayPlan}
                       onChange={(e) => setFormData(prev => ({ ...prev, todayPlan: e.target.value }))}
-                      placeholder="Outline your plan for today..."
-                      className="min-h-[80px]"
+                      placeholder="List your plans for today (each line will become a bullet point):
+• Work on task A  
+• Attend meeting B
+• Review code C"
+                      className="min-h-[100px]"
                     />
                   </div>
 
@@ -259,8 +293,11 @@ export function DailyReport() {
                     <Textarea
                       value={formData.blockers}
                       onChange={(e) => setFormData(prev => ({ ...prev, blockers: e.target.value }))}
-                      placeholder="Describe any obstacles or help needed (optional)..."
-                      className="min-h-[60px]"
+                      placeholder="List any blockers or help needed (optional):
+• Waiting for API documentation
+• Need design approval
+• Technical issue with X"
+                      className="min-h-[80px]"
                     />
                   </div>
 
@@ -311,7 +348,7 @@ export function DailyReport() {
               <div className="text-xs text-muted-foreground mb-4">
                 {authState.user.userRole === 'admin' 
                   ? "As an admin, you can create reports for any team member."
-                  : "You can only create your own daily reports."
+                  : "You can create your own daily reports and view all team reports."
                 }
               </div>
             )}
