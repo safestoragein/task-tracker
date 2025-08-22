@@ -586,10 +586,21 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
   }
 
   const moveTask = async (taskId: string, newStatus: TaskStatus) => {
+    console.log('🐛 MOVE DEBUG: moveTask called')
+    console.log('🐛 MOVE DEBUG: taskId =', taskId)
+    console.log('🐛 MOVE DEBUG: newStatus =', newStatus)
+    
     // Calculate the next order value for the target status
     const tasksInTargetStatus = state.tasks.filter(t => t.status === newStatus)
+    console.log('🐛 MOVE DEBUG: tasksInTargetStatus count =', tasksInTargetStatus.length)
+    
     const maxOrder = tasksInTargetStatus.reduce((max, task) => 
       Math.max(max, task.order ?? 0), -1)
+    console.log('🐛 MOVE DEBUG: maxOrder =', maxOrder)
+
+    // Find the task being moved
+    const taskBeingMoved = state.tasks.find(t => t.id === taskId)
+    console.log('🐛 MOVE DEBUG: taskBeingMoved =', taskBeingMoved ? { id: taskBeingMoved.id, title: taskBeingMoved.title, currentStatus: taskBeingMoved.status } : null)
 
     // Move in local state immediately with new order
     const updatedTasks = state.tasks.map(task =>
@@ -597,22 +608,33 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         ? { ...task, status: newStatus, order: maxOrder + 1, updatedAt: new Date() }
         : task
     )
+    
+    console.log('🐛 MOVE DEBUG: Dispatching REORDER_TASKS action')
     dispatch({ type: 'REORDER_TASKS', payload: { tasks: updatedTasks } })
+
+    // Verify the task was updated
+    const updatedTask = updatedTasks.find(t => t.id === taskId)
+    console.log('🐛 MOVE DEBUG: updatedTask =', updatedTask ? { id: updatedTask.id, title: updatedTask.title, newStatus: updatedTask.status, order: updatedTask.order } : null)
 
     // Try to update in database if online
     if (isOnline && supabase) {
       try {
+        console.log('🐛 MOVE DEBUG: Updating database...')
         const { error } = await supabase
           .from('tasks')
           .update({ status: newStatus, order: maxOrder + 1 })
           .eq('id', taskId)
 
         if (error) {
-          console.error('Error moving task in database:', error)
+          console.error('🐛 MOVE DEBUG: ❌ Error moving task in database:', error)
+        } else {
+          console.log('🐛 MOVE DEBUG: ✅ Database update successful')
         }
       } catch (error) {
-        console.error('Error moving task:', error)
+        console.error('🐛 MOVE DEBUG: ❌ Error moving task:', error)
       }
+    } else {
+      console.log('🐛 MOVE DEBUG: ℹ️ Skipping database update (offline or no supabase)')
     }
   }
 

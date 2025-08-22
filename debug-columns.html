@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Task Tracker Columns</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .column {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin: 10px;
+            min-height: 100px;
+            display: inline-block;
+            width: 200px;
+            vertical-align: top;
+        }
+        .task {
+            background: #f0f0f0;
+            padding: 5px;
+            margin: 5px 0;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Task Tracker Column Debug</h1>
+    <p>Open browser console and check if all columns are being rendered correctly.</p>
+    <p>Visit: <a href="http://localhost:3002" target="_blank">http://localhost:3002</a></p>
+    
+    <h2>Expected Columns (from KanbanBoard.tsx):</h2>
+    <div id="expected-columns">
+        <div class="column" style="border-color: #6b7280;">
+            <h3>Backlog</h3>
+            <div class="task">Should be droppable</div>
+        </div>
+        <div class="column" style="border-color: #64748b;">
+            <h3>To Do</h3>
+            <div class="task">Tasks can be dragged from here</div>
+        </div>
+        <div class="column" style="border-color: #3b82f6;">
+            <h3>In Progress</h3>
+            <div class="task">Should work normally</div>
+        </div>
+        <div class="column" style="border-color: #f59e0b;">
+            <h3>Review</h3>
+            <div class="task">Should work normally</div>
+        </div>
+        <div class="column" style="border-color: #10b981;">
+            <h3>Done</h3>
+            <div class="task">Should work normally</div>
+        </div>
+    </div>
+
+    <h2>Debugging Steps:</h2>
+    <ol>
+        <li>Open the task tracker app in another tab</li>
+        <li>Open browser developer tools</li>
+        <li>Try to drag a task from TODO to BACKLOG</li>
+        <li>Check if any errors appear in the console</li>
+        <li>Check if the backlog column has proper droppable attributes</li>
+    </ol>
+
+    <script>
+        console.log('Debug page loaded. Expected columns:', [
+            { id: 'backlog', title: 'Backlog', color: '#6b7280' },
+            { id: 'todo', title: 'To Do', color: '#64748b' },
+            { id: 'in-progress', title: 'In Progress', color: '#3b82f6' },
+            { id: 'review', title: 'Review', color: '#f59e0b' },
+            { id: 'done', title: 'Done', color: '#10b981' }
+        ]);
+    </script>
+</body>
+</html>

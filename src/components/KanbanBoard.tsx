@@ -59,44 +59,62 @@ export function KanbanBoard() {
     // Reset active task regardless of outcome
     setActiveTask(null)
 
+    // DEBUG: Log all drag event details
+    console.log('🐛 DRAG DEBUG: handleDragEnd called')
+    console.log('🐛 DRAG DEBUG: active =', active)
+    console.log('🐛 DRAG DEBUG: over =', over)
+
     // Ensure we have valid drag targets
     if (!over || !active) {
-      console.log('Drag ended without valid targets')
+      console.log('🐛 DRAG DEBUG: ❌ Drag ended without valid targets')
+      console.log('🐛 DRAG DEBUG: over =', over, 'active =', active)
       return
     }
 
     const taskId = active.id as string
     const overId = over.id as string
 
+    console.log('🐛 DRAG DEBUG: taskId =', taskId)
+    console.log('🐛 DRAG DEBUG: overId =', overId)
+
     // Find the task being moved
     const task = filteredTasks.find(t => t.id === taskId)
     if (!task) {
-      console.log('Task not found:', taskId)
+      console.log('🐛 DRAG DEBUG: ❌ Task not found:', taskId)
       return
     }
+
+    console.log('🐛 DRAG DEBUG: Found task =', { id: task.id, title: task.title, status: task.status })
 
     // Check if we're dropping on a column (status change)
     const validStatuses = ['backlog', 'todo', 'in-progress', 'review', 'done']
     const isDroppedOnColumn = validStatuses.includes(overId)
     
+    console.log('🐛 DRAG DEBUG: validStatuses =', validStatuses)
+    console.log('🐛 DRAG DEBUG: isDroppedOnColumn =', isDroppedOnColumn)
+    
     if (isDroppedOnColumn) {
       const newStatus = overId as TaskStatus
+      console.log('🐛 DRAG DEBUG: newStatus =', newStatus)
       
       if (task.status !== newStatus) {
         // Moving to different column
-        console.log(`Moving task "${task.title}" from ${task.status} to ${newStatus}`)
+        console.log(`🐛 DRAG DEBUG: ✅ Moving task "${task.title}" from ${task.status} to ${newStatus}`)
         moveTask(taskId, newStatus).catch(error => {
-          console.error('Failed to move task:', error)
+          console.error('🐛 DRAG DEBUG: ❌ Failed to move task:', error)
         })
       } else {
         // Dropped on same column - no status change needed
-        console.log('Task dropped on same column, no status change needed')
+        console.log('🐛 DRAG DEBUG: ℹ️ Task dropped on same column, no status change needed')
       }
     } else {
+      console.log('🐛 DRAG DEBUG: 🔄 Checking for reordering...')
       // Dropped on another task - handle reordering
       const overTask = filteredTasks.find(t => t.id === overId)
+      console.log('🐛 DRAG DEBUG: overTask =', overTask ? { id: overTask.id, status: overTask.status } : null)
+      
       if (overTask && task.status === overTask.status) {
-        console.log(`Reordering task "${task.title}" within ${task.status} column`)
+        console.log(`🐛 DRAG DEBUG: 🔄 Reordering task "${task.title}" within ${task.status} column`)
         
         // Get all tasks in the same column
         const columnTasks = getTasksByStatus(task.status)
@@ -123,9 +141,11 @@ export function KanbanBoard() {
           })
           
           reorderTasks(allTasksWithUpdatedOrder).catch(error => {
-            console.error('Failed to reorder tasks:', error)
+            console.error('🐛 DRAG DEBUG: ❌ Failed to reorder tasks:', error)
           })
         }
+      } else {
+        console.log('🐛 DRAG DEBUG: ❌ Cannot reorder - not dropped on valid task in same column')
       }
     }
   }
