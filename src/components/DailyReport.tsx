@@ -73,20 +73,37 @@ export function DailyReport() {
     if (!canEditDailyReport(authorId)) return
 
     const currentDate = new Date()
-    const reportId = `report-${authorId}-${selectedDate}-${reportCounter}`
-    const newReport: DailyReportType = {
-      id: reportId,
-      authorId,
-      date: selectedDateObj,
-      yesterdayWork: formData.yesterdayWork.trim(),
-      todayPlan: formData.todayPlan.trim(),
-      blockers: formData.blockers.trim() || undefined,
-      createdAt: currentDate,
-      updatedAt: currentDate,
+    const existingReport = getUserReport(authorId)
+
+    if (existingReport) {
+      // Update existing report
+      const updatedReport: DailyReportType = {
+        ...existingReport,
+        yesterdayWork: formData.yesterdayWork.trim(),
+        todayPlan: formData.todayPlan.trim(),
+        blockers: formData.blockers.trim() || undefined,
+        updatedAt: currentDate,
+      }
+
+      dispatch({ type: 'UPDATE_DAILY_REPORT', payload: updatedReport })
+    } else {
+      // Create new report
+      const reportId = `report-${authorId}-${selectedDate}-${reportCounter}`
+      const newReport: DailyReportType = {
+        id: reportId,
+        authorId,
+        date: selectedDateObj,
+        yesterdayWork: formData.yesterdayWork.trim(),
+        todayPlan: formData.todayPlan.trim(),
+        blockers: formData.blockers.trim() || undefined,
+        createdAt: currentDate,
+        updatedAt: currentDate,
+      }
+
+      dispatch({ type: 'ADD_DAILY_REPORT', payload: newReport })
+      setReportCounter(prev => prev + 1)
     }
 
-    dispatch({ type: 'ADD_DAILY_REPORT', payload: newReport })
-    setReportCounter(prev => prev + 1)
     setFormData({ yesterdayWork: '', todayPlan: '', blockers: '' })
     setIsCreating(false)
     setActiveReportUserId(undefined)
@@ -215,6 +232,13 @@ export function DailyReport() {
                           Pending
                         </Badge>
                       )}
+                      {/* Debug info for Anush */}
+                      {member.name === 'Anush' && (
+                        <div className="text-xs bg-yellow-100 p-2 rounded">
+                          Debug: canEdit={canEdit.toString()}, hasReported={hasReported.toString()},
+                          currentUser={authState.user?.name}, userRole={authState.user?.userRole}
+                        </div>
+                      )}
                       {canEdit && !hasReported && (
                         <Button
                           size="sm"
@@ -226,6 +250,29 @@ export function DailyReport() {
                         >
                           <Plus className="h-4 w-4 mr-1" />
                           Add Report
+                        </Button>
+                      )}
+                      {canEdit && hasReported && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => {
+                            setActiveReportUserId(member.id)
+                            setIsCreating(true)
+                            // Pre-fill form with existing data
+                            const existingReport = getUserReport(member.id)
+                            if (existingReport) {
+                              setFormData({
+                                yesterdayWork: existingReport.yesterdayWork || '',
+                                todayPlan: existingReport.todayPlan || '',
+                                blockers: existingReport.blockers || '',
+                              })
+                            }
+                          }}
+                          disabled={isCreating}
+                        >
+                          <Plus className="h-4 w-4 mr-1" />
+                          Update Report
                         </Button>
                       )}
                     </div>
@@ -274,11 +321,12 @@ export function DailyReport() {
                   </CardContent>
                 )}
 
-                {!hasReported && isCreating && activeReportUserId === member.id && canEdit && (
+                {isCreating && activeReportUserId === member.id && canEdit && (
                   <CardContent className="space-y-4">
                     <div className="mb-4 p-3 bg-blue-50 rounded-md">
                       <p className="text-sm text-blue-800">
-                        Creating daily standup report for <strong>{member.name}</strong>
+                        {hasReported ? 'Updating' : 'Creating'} daily standup report for{' '}
+                        <strong>{member.name}</strong>
                       </p>
                     </div>
 
@@ -336,7 +384,7 @@ export function DailyReport() {
                         onClick={() => handleSubmit(member.id)}
                         disabled={!formData.yesterdayWork.trim() && !formData.todayPlan.trim()}
                       >
-                        Submit Report
+                        {hasReported ? 'Update Report' : 'Submit Report'}
                       </Button>
                       <Button
                         variant="outline"
