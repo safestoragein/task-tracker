@@ -57,8 +57,20 @@ const mockDispatch = jest.fn()
 const mockState: TaskState = {
   tasks: mockTasks,
   teamMembers: [
-    { id: '1', name: 'Alice Johnson', role: 'Developer', email: 'alice@test.com' },
-    { id: '2', name: 'Bob Smith', role: 'Designer', email: 'bob@test.com' },
+    {
+      id: '1',
+      name: 'Alice Johnson',
+      role: 'Developer',
+      email: 'alice@test.com',
+      userRole: 'member' as const,
+    },
+    {
+      id: '2',
+      name: 'Bob Smith',
+      role: 'Designer',
+      email: 'bob@test.com',
+      userRole: 'member' as const,
+    },
   ],
   labels: [
     { id: '1', name: 'Bug', color: '#ef4444' },

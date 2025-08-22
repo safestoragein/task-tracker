@@ -53,7 +53,6 @@ describe('LocalStorageManager', () => {
     comments: [],
     attachments: [],
     order: 0,
-    projectId: 'project-1',
     isRecurring: false,
     recurringPattern: null,
     originalTaskId: null,
@@ -138,14 +137,14 @@ describe('LocalStorageManager', () => {
       // Update task-1
       const updatedTasks = LocalStorageManager.getTasks()
       updatedTasks[0].title = 'Updated Task Title'
-      updatedTasks[0].status = 'completed'
+      updatedTasks[0].status = 'done'
       updatedTasks[0].updatedAt = new Date()
 
       LocalStorageManager.setTasks(updatedTasks)
 
       const finalTasks = LocalStorageManager.getTasks()
       expect(finalTasks[0].title).toBe('Updated Task Title')
-      expect(finalTasks[0].status).toBe('completed')
+      expect(finalTasks[0].status).toBe('done')
       expect(finalTasks[0].assigneeId).toBe('2') // Should maintain Niranjan's assignment
     })
   })
