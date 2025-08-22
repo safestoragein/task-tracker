@@ -27,7 +27,10 @@
       "Bash(gh repo create:*)",
       "Bash(touch:*)",
       "Bash(sed:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(npx husky init:*)",
+      "Bash(chmod:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": []
   }
