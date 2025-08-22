@@ -12,6 +12,7 @@ import { Badge } from './ui/badge'
 import { UserSelector } from './UserSelector'
 import { Plus, Calendar, User, AlertTriangle, Lock, Shield, Eye } from 'lucide-react'
 import { cn, formatDate } from '@/lib/utils'
+import { DebugPanel } from './DebugPanel'
 
 // Helper function to format text into bullet points for better readability
 const formatToBulletPoints = (text: string): JSX.Element[] => {
@@ -131,6 +132,12 @@ export function DailyReport() {
 
       {/* Team Reports */}
       <div className="grid gap-4">
+        {state.teamMembers.length === 0 && (
+          <div className="text-center p-8 text-red-600">
+            <h3 className="text-lg font-medium">⚠️ DEBUG: No Team Members Found</h3>
+            <p className="text-sm">Team members array is empty. Check localStorage initialization.</p>
+          </div>
+        )}
         {state.teamMembers
           .filter(member => !selectedUserId || member.id === selectedUserId)
           .map(member => {
@@ -139,6 +146,17 @@ export function DailyReport() {
           const canEdit = canEditDailyReport(member.id)
           // All members can view all reports, but edit permissions are controlled separately
           const canView = authState.user?.userRole === 'admin' || authState.user?.userRole === 'member' || authState.user?.userRole === 'scrum_master'
+
+          // Debug logging
+          if (member.name === 'Anush') {
+            console.log('🐛 ANUSH DEBUG:', {
+              member,
+              currentUser: authState.user,
+              canEdit,
+              canView,
+              hasReported
+            })
+          }
 
           if (!canView) return null
 
@@ -355,6 +373,8 @@ export function DailyReport() {
           </CardContent>
         </Card>
       )}
+
+      <DebugPanel />
     </div>
   )
 }

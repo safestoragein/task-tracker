@@ -129,8 +129,11 @@ export class LocalStorageManager {
 
   // Initialize with default data if empty
   static initializeDefaults(): void {
-    // Initialize team members if empty
-    if (this.getTeamMembers().length === 0) {
+    // Initialize team members if empty OR if they contain old fake data
+    const existingMembers = this.getTeamMembers()
+    const hasFakeData = existingMembers.some(m => m.name === 'John Doe' || m.name === 'Jane Smith' || m.name === 'Unassigned')
+    
+    if (existingMembers.length === 0 || hasFakeData) {
       const defaultTeamMembers: TeamMember[] = [
         {
           id: '1',
