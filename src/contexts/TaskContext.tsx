@@ -363,7 +363,11 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 
     // Cleanup subscriptions
     return () => {
-      subs.forEach(sub => sub.unsubscribe())
+      subs.forEach(sub => {
+        if (sub && typeof sub.unsubscribe === 'function') {
+          sub.unsubscribe()
+        }
+      })
     }
   }, [])
 
